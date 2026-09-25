@@ -9,6 +9,9 @@
 <title>اقرأ واكسب</title>
 <link rel="manifest" href="./manifest.json">
 <link rel="apple-touch-icon" href="./icons/icon-192.png">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700;800;900&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -358,14 +361,21 @@ input,button,textarea,select{font-family:inherit}
   </div>
   <div class="login-body">
     <div class="login-tabs">
-      <button class="login-tab active" onclick="switchLoginTab('emp')">موظف</button>
-      <button class="login-tab" onclick="switchLoginTab('admin')">مدير</button>
+      <button class="login-tab active" id="tab-in" onclick="switchLoginTab('in')">دخول</button>
+      <button class="login-tab" id="tab-up" onclick="switchLoginTab('up')">حساب جديد</button>
     </div>
-    <div id="login-emp">
-      <div class="field"><label>اسمك</label><input id="emp-name" placeholder="مثال: أحمد المنصوري"></div>
-      <div class="field"><label>البريد الإلكتروني</label><input id="emp-email" type="email" placeholder="ahmed@company.ae" dir="ltr"></div>
+    <div id="login-in">
+      <div class="field"><label>البريد الإلكتروني</label><input id="in-email" type="email" placeholder="ahmed@company.ae" dir="ltr" autocomplete="email"></div>
+      <div class="field"><label>كلمة المرور</label><input id="in-pass" type="password" placeholder="••••••••" dir="ltr" autocomplete="current-password"></div>
+      <button class="btn btn-g" id="btn-in" onclick="doLogin()">دخول</button>
+      <div style="text-align:center;margin-top:12px"><button class="card-link" onclick="resetPass()">نسيت كلمة المرور؟</button></div>
+    </div>
+    <div id="login-up" style="display:none">
+      <div class="field"><label>اسمك</label><input id="up-name" placeholder="مثال: أحمد المنصوري" autocomplete="name"></div>
+      <div class="field"><label>البريد الإلكتروني</label><input id="up-email" type="email" placeholder="ahmed@company.ae" dir="ltr" autocomplete="email"></div>
+      <div class="field"><label>كلمة المرور (6 أحرف على الأقل)</label><input id="up-pass" type="password" placeholder="••••••••" dir="ltr" autocomplete="new-password"></div>
       <div class="field"><label>المؤسسة</label>
-        <select id="emp-org">
+        <select id="up-org">
           <option value="">اختر مؤسستك</option>
           <option value="pc">ديوان الرئاسة</option>
           <option value="moe">وزارة التربية</option>
@@ -373,13 +383,7 @@ input,button,textarea,select{font-family:inherit}
           <option value="other">جهة أخرى</option>
         </select>
       </div>
-      <button class="btn btn-g" onclick="loginAs('emp')">دخول كموظف</button>
-    </div>
-    <div id="login-admin" style="display:none">
-      <div class="field"><label>اسم المدير</label><input id="adm-name" placeholder="مثال: سارة الهاشمي"></div>
-      <div class="field"><label>البريد الإلكتروني</label><input id="adm-email" type="email" placeholder="sara@company.ae" dir="ltr"></div>
-      <div class="field"><label>رمز المؤسسة</label><input id="adm-code" placeholder="الرمز المرسل من إدارة المنصة" dir="ltr"></div>
-      <button class="btn btn-g" onclick="loginAs('admin')">دخول كمدير</button>
+      <button class="btn btn-g" id="btn-up" onclick="doSignup()">إنشاء الحساب</button>
     </div>
   </div>
   <div class="login-footer">بالدخول أنت توافق على شروط الاستخدام وسياسة الخصوصية</div>
@@ -696,70 +700,114 @@ function applyCustomDur(){
   updateTimer();
 }
 
-const FAKE_USERS = [
-  {name:'فاطمة الحربي',sessions:42,pts:420,streak:14,av:'👩‍💼',bg:'#E8F5F0'},
-  {name:'نورة الشامسي',sessions:38,pts:380,streak:11,av:'👩‍🏫',bg:'#FFF8E7'},
-  {name:'سعيد المهيري',sessions:35,pts:350,streak:9,av:'👨‍💻',bg:'#F0E8F5'},
-  {name:'خالد العمري',sessions:30,pts:300,streak:7,av:'👨‍🔬',bg:'#FFF0E8'},
-  {name:'مريم السويدي',sessions:27,pts:270,streak:6,av:'👩‍⚕️',bg:'#E8F0F5'},
-  {name:'عبدالله الكتبي',sessions:22,pts:220,streak:5,av:'👨‍🎓',bg:'#E8F5F0'},
-  {name:'ليلى الظاهري',sessions:18,pts:180,streak:3,av:'👩‍🎨',bg:'#FFF8E7'},
-  {name:'راشد البلوشي',sessions:15,pts:150,streak:2,av:'👨‍✈️',bg:'#F0E8F5'},
-];
+// ======== FIREBASE ========
+const firebaseConfig = {
+  apiKey: "AIzaSyC1GMBmBpFkT441mYmKBSe_tEjBZUrqGJU",
+  authDomain: "iqra-app-12f77.firebaseapp.com",
+  projectId: "iqra-app-12f77",
+  storageBucket: "iqra-app-12f77.firebasestorage.app",
+  messagingSenderId: "992702544512",
+  appId: "1:992702544512:web:7bba00996bcb2d483a8465"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+let uid = null;            // current user's id
+let REWARDS = [];          // shared rewards from Firestore
+let USERS_CACHE = [];      // other users (for leaderboard / admin)
 
 const DEFAULT_REWARDS = [
-  {id:1,name:'قسيمة شراء كتاب',desc:'من جرير أو كلمات',cost:500,icon:'📕',bg:'#E8F5F0',qty:10},
-  {id:2,name:'اشتراك شهري — أبجد',desc:'مكتبة رقمية عربية',cost:300,icon:'📱',bg:'#FFF8E7',qty:20},
-  {id:3,name:'كتاب صوتي مجاني',desc:'من Storytel العربية',cost:200,icon:'🎧',bg:'#F0E8F5',qty:30},
-  {id:4,name:'قهوة مجانية',desc:'من الكافتيريا',cost:100,icon:'☕',bg:'#FFF0E8',qty:50},
-  {id:5,name:'شارة قارئ متميّز',desc:'شارة رقمية للملف',cost:50,icon:'🏅',bg:'#E8F0F5',qty:999},
+  {name:'قسيمة شراء كتاب',desc:'من جرير أو كلمات',cost:500,icon:'📕',bg:'#E8F5F0',qty:10},
+  {name:'اشتراك شهري — أبجد',desc:'مكتبة رقمية عربية',cost:300,icon:'📱',bg:'#FFF8E7',qty:20},
+  {name:'كتاب صوتي مجاني',desc:'من Storytel العربية',cost:200,icon:'🎧',bg:'#F0E8F5',qty:30},
+  {name:'قهوة مجانية',desc:'من الكافتيريا',cost:100,icon:'☕',bg:'#FFF0E8',qty:50},
+  {name:'شارة قارئ متميّز',desc:'شارة رقمية للملف',cost:50,icon:'🏅',bg:'#E8F0F5',qty:999},
 ];
+const AVATARS=['👩‍💼','👨‍💻','👩‍🏫','👨‍🔬','👩‍⚕️','👨‍🎓','👩‍🎨','👨‍✈️'];
+const AV_BGS=['#E8F5F0','#FFF8E7','#F0E8F5','#FFF0E8','#E8F0F5'];
+function avOf(u){const n=(u.name||'?').charCodeAt(0);return{av:AVATARS[n%AVATARS.length],bg:AV_BGS[n%AV_BGS.length]}}
+const ORG_NAMES={'pc':'ديوان الرئاسة','moe':'وزارة التربية','adnoc':'أدنوك','other':'جهة أخرى'};
 
-// Partner fake summaries
-const PARTNER_SUMMARIES = [
-  {book:'العادات الذرية',text:'تحدث الفصل عن قاعدة الدقيقتين: أي عادة جديدة يجب أن تبدأ بأقل من دقيقتين. الفكرة أن التكرار أهم من الكمال، والبداية الصغيرة تكسر حاجز المقاومة النفسية.',date:new Date(Date.now()-86400000).toISOString(),score:9},
-  {book:'فكّر ببطء، فكّر بسرعة',text:'قرأت عن مغالطة التكلفة الغارقة وكيف نستمر في مشاريع فاشلة لأننا استثمرنا فيها وقتاً. كاهنمان يربط هذا بالنظام الأول الذي يكره الخسارة أكثر مما يحب الربح.',date:new Date(Date.now()-172800000).toISOString(),score:8},
-  {book:'إغاثة اللهفان',text:'فصل جميل عن أثر الذنوب على القلب وكيف أن المعاصي تطفئ نور البصيرة. ابن القيم يشبّه القلب بالمرآة التي يعلوها الصدأ كلما أذنب الإنسان.',date:new Date(Date.now()-345600000).toISOString(),score:8},
-];
+function defaultState(){return{name:'',email:'',org:'',role:'user',sessions:0,pts:0,streak:0,lastDate:null,todayDone:false,log:[],redeemed:[],summaries:[],partnerId:null,partnerName:'',partnerRatings:[],books:{},createdAt:new Date().toISOString()}}
 
-function defaultState(){return{name:'',email:'',org:'',role:'emp',sessions:0,pts:0,streak:0,lastDate:null,todayDone:false,log:[],rewards:[...DEFAULT_REWARDS],redeemed:[],adminRewards:[...DEFAULT_REWARDS],summaries:[],lastSummary:null,hasPartner:false,partnerName:'',partnerRatings:[],books:{}}}
-function load(){try{const s=localStorage.getItem('iqra2');S=s?JSON.parse(s):defaultState();S.todayDone=S.lastDate===new Date().toDateString()}catch(e){S=defaultState()}}
-function save(){try{localStorage.setItem('iqra2',JSON.stringify(S))}catch(e){}}
+// Load this user's document from Firestore
+async function load(){
+  const snap=await db.collection('users').doc(uid).get();
+  S=snap.exists?{...defaultState(),...snap.data()}:defaultState();
+  S.todayDone=S.lastDate===new Date().toDateString();
+}
+// Save this user's document to Firestore (only the fields we own)
+function save(){
+  if(!uid)return;
+  const {todayDone,...data}=S;
+  db.collection('users').doc(uid).set(data,{merge:true}).catch(e=>{console.error(e);showToast('⚠️ تعذّر الحفظ — تحقق من الاتصال')});
+}
+async function loadRewards(){
+  const q=await db.collection('rewards').orderBy('cost','desc').get();
+  REWARDS=q.docs.map(d=>({id:d.id,...d.data()}));
+}
+async function loadUsers(){
+  const q=await db.collection('users').orderBy('pts','desc').limit(100).get();
+  USERS_CACHE=q.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role!=='admin');
+}
 
-// ======== SPLASH & LOGIN ========
-window.addEventListener('DOMContentLoaded',()=>{
-  load();
-  setTimeout(()=>{
-    hide('splash');
-    if(S.name){mode=S.role;show('main');initMain()}
-    else show('login');
-  },1500);
+// ======== SPLASH & AUTH ========
+auth.onAuthStateChanged(async user=>{
+  if(user){
+    uid=user.uid;
+    try{
+      await load();
+      if(!S.name){S.name=user.displayName||'';S.email=user.email;save()}
+      await loadRewards();
+      mode=S.role==='admin'?'admin':'emp';
+      hide('splash');hide('login');show('main');initMain();
+    }catch(e){console.error(e);showToast('⚠️ خطأ في تحميل البيانات');hide('splash');show('login')}
+  }else{
+    uid=null;S=defaultState();
+    setTimeout(()=>{hide('splash');hide('main');show('login')},800);
+  }
 });
 
 function switchLoginTab(t){
-  document.querySelectorAll('.login-tab').forEach(b=>b.classList.remove('active'));
-  event.target.classList.add('active');
-  document.getElementById('login-emp').style.display=t==='emp'?'block':'none';
-  document.getElementById('login-admin').style.display=t==='admin'?'block':'none';
+  document.getElementById('tab-in').classList.toggle('active',t==='in');
+  document.getElementById('tab-up').classList.toggle('active',t==='up');
+  document.getElementById('login-in').style.display=t==='in'?'block':'none';
+  document.getElementById('login-up').style.display=t==='up'?'block':'none';
 }
-
-function loginAs(role){
-  if(role==='emp'){
-    const n=document.getElementById('emp-name').value.trim();
-    const e=document.getElementById('emp-email').value.trim();
-    const o=document.getElementById('emp-org').value;
-    if(!n||!e||!o){showToast('يرجى تعبئة جميع الحقول');return}
-    S.name=n;S.email=e;S.org=o;S.role='emp';
-  } else {
-    const n=document.getElementById('adm-name').value.trim();
-    const e=document.getElementById('adm-email').value.trim();
-    if(!n||!e){showToast('يرجى تعبئة جميع الحقول');return}
-    S.name=n;S.email=e;S.role='admin';
-  }
-  mode=S.role;save();hide('login');show('main');initMain();
+function authErr(e){
+  const m={'auth/email-already-in-use':'هذا البريد مسجّل مسبقاً — سجّل دخولك','auth/invalid-email':'البريد الإلكتروني غير صحيح','auth/weak-password':'كلمة المرور ضعيفة (6 أحرف على الأقل)','auth/user-not-found':'لا يوجد حساب بهذا البريد','auth/wrong-password':'كلمة المرور غير صحيحة','auth/invalid-credential':'البريد أو كلمة المرور غير صحيحة','auth/too-many-requests':'محاولات كثيرة — حاول لاحقاً','auth/network-request-failed':'لا يوجد اتصال بالإنترنت'};
+  showToast('⚠️ '+(m[e.code]||'حدث خطأ، حاول مجدداً'));console.error(e);
 }
-
-function logout(){S=defaultState();save();location.reload()}
+async function doSignup(){
+  const n=document.getElementById('up-name').value.trim();
+  const e=document.getElementById('up-email').value.trim();
+  const p=document.getElementById('up-pass').value;
+  const o=document.getElementById('up-org').value;
+  if(!n||!e||!p||!o){showToast('يرجى تعبئة جميع الحقول');return}
+  const b=document.getElementById('btn-up');b.disabled=true;b.textContent='جارٍ الإنشاء...';
+  try{
+    const cred=await auth.createUserWithEmailAndPassword(e,p);
+    await cred.user.updateProfile({displayName:n});
+    const st={...defaultState(),name:n,email:e,org:o};
+    const {todayDone,...data}=st;
+    await db.collection('users').doc(cred.user.uid).set(data);
+  }catch(err){authErr(err)}
+  b.disabled=false;b.textContent='إنشاء الحساب';
+}
+async function doLogin(){
+  const e=document.getElementById('in-email').value.trim();
+  const p=document.getElementById('in-pass').value;
+  if(!e||!p){showToast('أدخل البريد وكلمة المرور');return}
+  const b=document.getElementById('btn-in');b.disabled=true;b.textContent='جارٍ الدخول...';
+  try{await auth.signInWithEmailAndPassword(e,p)}catch(err){authErr(err)}
+  b.disabled=false;b.textContent='دخول';
+}
+async function resetPass(){
+  const e=document.getElementById('in-email').value.trim();
+  if(!e){showToast('اكتب بريدك أولاً ثم اضغط "نسيت كلمة المرور"');return}
+  try{await auth.sendPasswordResetEmail(e);showToast('📧 أُرسل رابط إعادة التعيين إلى بريدك')}catch(err){authErr(err)}
+}
+function logout(){auth.signOut().then(()=>location.reload())}
 
 // ======== NAVIGATION ========
 const EMP_TABS=[
@@ -1064,31 +1112,41 @@ function renderWeek(){
 
 function renderChart(){
   const d=['سبت','أحد','إثن','ثلا','أرب','خمي','جمع'];
-  const vals=[2,3,1,4,3,2,S.todayDone?1:0];
+  const vals=[0,0,0,0,0,0,0];
+  const now=new Date();const weekAgo=new Date(now);weekAgo.setDate(now.getDate()-6);weekAgo.setHours(0,0,0,0);
+  (S.log||[]).forEach(l=>{const dt=new Date(l.date);if(dt>=weekAgo){const i=(dt.getDay()+1)%7;vals[i]++}});
   const mx=Math.max(...vals,1);
   document.getElementById('week-chart').innerHTML=d.map((l,i)=>`<div class="chart-col"><div class="chart-val">${vals[i]}</div><div class="chart-bar" style="height:${vals[i]/mx*100}%"></div><div class="chart-lbl">${l}</div></div>`).join('');
 }
 
-function renderBoard(full){
-  const all=[...FAKE_USERS,{name:S.name||'أنت',sessions:S.sessions,pts:S.pts,streak:S.streak,av:'⭐',bg:'var(--accent-l)',me:true}].sort((a,b)=>b.pts-a.pts);
+async function renderBoard(full){
+  try{await loadUsers()}catch(e){console.error(e)}
+  const all=USERS_CACHE.map(u=>({...u,...avOf(u),me:u.id===uid})).sort((a,b)=>(b.pts||0)-(a.pts||0));
+  if(!all.some(u=>u.me))all.push({name:S.name||'أنت',sessions:S.sessions,pts:S.pts,streak:S.streak,av:'⭐',bg:'var(--accent-l)',me:true});
   const list=full?all:all.slice(0,5);
   const rankCls=['rank-1','rank-2','rank-3'];
-  const html=list.map((u,i)=>`<div class="list-item" ${u.me?'style="background:var(--ok-l);margin:0 -20px;padding:14px 20px;border-radius:var(--r-sm)"':''}><div class="rank-num ${rankCls[i]||''}">${i+1}</div><div class="li-icon" style="background:${u.bg}">${u.av}</div><div class="li-body"><div class="li-title">${u.name}${u.me?' (أنت)':''}</div><div class="li-sub">${u.sessions} جلسة · سلسلة ${u.streak} يوم</div></div><div class="li-end" style="color:var(--g1)">${u.pts}</div></div>`).join('');
-  if(full)document.getElementById('board-full').innerHTML=`<div class="card-title mb-10">ترتيب جميع المشاركين</div>`+html;
+  const html=list.map((u,i)=>`<div class="list-item" ${u.me?'style="background:var(--ok-l);margin:0 -20px;padding:14px 20px;border-radius:var(--r-sm)"':''}><div class="rank-num ${rankCls[i]||''}">${i+1}</div><div class="li-icon" style="background:${u.bg}">${u.me?'⭐':u.av}</div><div class="li-body"><div class="li-title">${u.name}${u.me?' (أنت)':''}</div><div class="li-sub">${u.sessions||0} جلسة · سلسلة ${u.streak||0} يوم</div></div><div class="li-end" style="color:var(--g1)">${u.pts||0}</div></div>`).join('');
+  if(full)document.getElementById('board-full').innerHTML=`<div class="card-title mb-10">ترتيب جميع المشاركين</div>`+(html||'<div class="empty"><div class="empty-txt">لا يوجد مشاركون بعد</div></div>');
   else document.getElementById('home-board').innerHTML=html;
 }
 
 function renderRewards(){
-  const rws=S.rewards||DEFAULT_REWARDS;
   document.getElementById('rw-bal').textContent=S.pts;
-  document.getElementById('rw-list').innerHTML=rws.map(r=>`<div class="rw-card"><div class="rw-icon" style="background:${r.bg}">${r.icon}</div><div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc}</div><div class="rw-cost">${r.cost} نقطة</div></div><button class="btn-xs ${S.pts>=r.cost?'btn-g':'btn-o'}" ${S.pts<r.cost?'disabled':''} onclick="redeem(${r.id})">استبدال</button></div>`).join('');
+  if(!REWARDS.length){document.getElementById('rw-list').innerHTML='<div class="empty"><div class="empty-icon">🎁</div><div class="empty-txt">لم يضف المدير مكافآت بعد</div></div>';return}
+  document.getElementById('rw-list').innerHTML=REWARDS.map(r=>{const out=(r.qty||0)<=0;return`<div class="rw-card"><div class="rw-icon" style="background:${r.bg}">${r.icon}</div><div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc||''}</div><div class="rw-cost">${r.cost} نقطة${out?' · نفدت':''}</div></div><button class="btn-xs ${S.pts>=r.cost&&!out?'btn-g':'btn-o'}" ${S.pts<r.cost||out?'disabled':''} onclick="redeem('${r.id}')">استبدال</button></div>`}).join('');
 }
 
-function redeem(id){
-  const r=(S.rewards||DEFAULT_REWARDS).find(x=>x.id===id);
-  if(!r||S.pts<r.cost)return;
+async function redeem(id){
+  const r=REWARDS.find(x=>x.id===id);
+  if(!r||S.pts<r.cost||(r.qty||0)<=0)return;
   S.pts-=r.cost;S.redeemed.push({name:r.name,date:new Date().toISOString()});
-  save();refreshAll();confetti();showToast('🎉 تم استبدال: '+r.name);
+  save();
+  try{
+    await db.collection('redemptions').add({uid,userName:S.name,rewardId:id,rewardName:r.name,cost:r.cost,date:new Date().toISOString(),status:'pending'});
+    await db.collection('rewards').doc(id).update({qty:firebase.firestore.FieldValue.increment(-1)});
+    await loadRewards();
+  }catch(e){console.error(e)}
+  refreshAll();confetti();showToast('🎉 تم طلب: '+r.name+' — سيتواصل معك المدير');
 }
 
 function renderLog(){
@@ -1115,53 +1173,70 @@ function renderProfile(){
 }
 
 // ======== ADMIN ========
-function renderAdminHome(){
-  const d=['سبت','أحد','إثن','ثلا','أرب','خمي','جمع'];
-  const vals=[18,24,15,32,28,20,12];
-  const mx=Math.max(...vals);
-  document.getElementById('adm-chart').innerHTML=d.map((l,i)=>`<div class="chart-col"><div class="chart-val">${vals[i]}</div><div class="chart-bar" style="height:${vals[i]/mx*100}%"></div><div class="chart-lbl">${l}</div></div>`).join('');
-  document.getElementById('adm-top').innerHTML=FAKE_USERS.slice(0,5).map((u,i)=>`<div class="emp-row"><div class="rank-num ${['rank-1','rank-2','rank-3'][i]||''}">${i+1}</div><div class="emp-avatar" style="background:${u.bg}">${u.av}</div><div class="emp-info"><div class="emp-name">${u.name}</div><div class="emp-meta">${u.sessions} جلسة · ${u.pts} نقطة</div></div><div class="emp-badge active">نشط</div></div>`).join('');
+async function renderAdminHome(){
   document.getElementById('apf-name').textContent=S.name;
+  try{await loadUsers()}catch(e){console.error(e)}
+  const users=USERS_CACHE;
+  const now=new Date();const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const weekAgo=new Date(now);weekAgo.setDate(now.getDate()-6);weekAgo.setHours(0,0,0,0);
+  let monthSessions=0,totalMin=0;const vals=[0,0,0,0,0,0,0];let activeWeek=0;
+  users.forEach(u=>{let act=false;(u.log||[]).forEach(l=>{const dt=new Date(l.date);totalMin+=(l.dur||15);if(dt>=monthStart)monthSessions++;if(dt>=weekAgo){vals[(dt.getDay()+1)%7]++;act=true}});if(act)activeWeek++});
+  const grid=document.querySelector('#pg-adm-home .admin-stat-grid');
+  grid.innerHTML=`
+    <div class="ad-stat"><div class="ad-stat-val">${users.length}</div><div class="ad-stat-lbl">موظف مسجّل</div></div>
+    <div class="ad-stat"><div class="ad-stat-val">${monthSessions}</div><div class="ad-stat-lbl">جلسة هذا الشهر</div></div>
+    <div class="ad-stat"><div class="ad-stat-val">${(totalMin/60).toFixed(0)}<span style="font-size:14px"> ساعة</span></div><div class="ad-stat-lbl">إجمالي القراءة</div></div>
+    <div class="ad-stat"><div class="ad-stat-val">${users.length?Math.round(activeWeek/users.length*100):0}%</div><div class="ad-stat-lbl">نشطون هذا الأسبوع</div></div>`;
+  const d=['سبت','أحد','إثن','ثلا','أرب','خمي','جمع'];const mx=Math.max(...vals,1);
+  document.getElementById('adm-chart').innerHTML=d.map((l,i)=>`<div class="chart-col"><div class="chart-val">${vals[i]}</div><div class="chart-bar" style="height:${vals[i]/mx*100}%"></div><div class="chart-lbl">${l}</div></div>`).join('');
+  document.getElementById('adm-top').innerHTML=users.slice(0,5).map((u,i)=>{const a=avOf(u);return`<div class="emp-row"><div class="rank-num ${['rank-1','rank-2','rank-3'][i]||''}">${i+1}</div><div class="emp-avatar" style="background:${a.bg}">${a.av}</div><div class="emp-info"><div class="emp-name">${u.name}</div><div class="emp-meta">${u.sessions||0} جلسة · ${u.pts||0} نقطة</div></div><div class="emp-badge active">نشط</div></div>`}).join('')||'<div class="empty"><div class="empty-txt">لا يوجد موظفون بعد</div></div>';
 }
 
-const ALL_EMPS=[...FAKE_USERS,
-  {name:'حمدان النعيمي',sessions:12,pts:120,av:'👨‍🏭',bg:'#FFF0E8',active:true},
-  {name:'شيخة الكعبي',sessions:8,pts:80,av:'👩‍🔧',bg:'#E8F5F0',active:true},
-  {name:'سالم الرميثي',sessions:3,pts:30,av:'👨‍🌾',bg:'#F0E8F5',active:false},
-  {name:'هند المزروعي',sessions:0,pts:0,av:'👩‍🍳',bg:'#FFF8E7',active:false},
-];
-
-function renderAdminEmps(filter=''){
-  const list=filter?ALL_EMPS.filter(e=>e.name.includes(filter)):ALL_EMPS;
-  document.getElementById('adm-emp-list').innerHTML=list.map(e=>`<div class="emp-row"><div class="emp-avatar" style="background:${e.bg}">${e.av}</div><div class="emp-info"><div class="emp-name">${e.name}</div><div class="emp-meta">${e.sessions} جلسة · سلسلة ${e.streak||0} يوم</div></div><div class="emp-badge ${(e.active!==false&&e.sessions>0)?'active':'inactive'}">${(e.active!==false&&e.sessions>0)?'نشط':'غير نشط'}</div></div>`).join('');
+async function renderAdminEmps(filter=''){
+  if(!USERS_CACHE.length){try{await loadUsers()}catch(e){console.error(e)}}
+  document.querySelector('#pg-adm-emp .card-title').textContent=`الموظفون (${USERS_CACHE.length})`;
+  const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
+  const list=filter?USERS_CACHE.filter(e=>(e.name||'').includes(filter)):USERS_CACHE;
+  document.getElementById('adm-emp-list').innerHTML=list.map(e=>{const a=avOf(e);const active=e.lastDate&&new Date(e.lastDate)>=weekAgo;return`<div class="emp-row"><div class="emp-avatar" style="background:${a.bg}">${a.av}</div><div class="emp-info"><div class="emp-name">${e.name}</div><div class="emp-meta">${ORG_NAMES[e.org]||''} · ${e.sessions||0} جلسة · سلسلة ${e.streak||0} يوم</div></div><div class="emp-badge ${active?'active':'inactive'}">${active?'نشط':'غير نشط'}</div></div>`}).join('')||'<div class="empty"><div class="empty-txt">لا نتائج</div></div>';
 }
 function filterEmps(){renderAdminEmps(document.getElementById('adm-search').value.trim())}
 
-function renderAdminRewards(){
-  const rws=S.adminRewards||DEFAULT_REWARDS;
-  document.getElementById('adm-rw-list').innerHTML=rws.map(r=>`<div class="rw-card"><div class="rw-icon" style="background:${r.bg}">${r.icon}</div><div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc}</div><div class="rw-cost">${r.cost} نقطة · متاح: ${r.qty}</div></div><button class="btn-xs btn-o" onclick="removeReward(${r.id})" style="color:var(--err);border-color:var(--err)">حذف</button></div>`).join('');
-  document.getElementById('adm-redeem').innerHTML=`<div class="empty"><div class="empty-icon">📬</div><div class="empty-txt">لا توجد طلبات استبدال حالياً</div></div>`;
+async function renderAdminRewards(){
+  try{await loadRewards()}catch(e){console.error(e)}
+  const c=document.getElementById('adm-rw-list');
+  if(!REWARDS.length){c.innerHTML=`<div class="empty"><div class="empty-icon">🎁</div><div class="empty-txt">لا توجد مكافآت بعد</div><button class="btn btn-o btn-sm mt-16" onclick="seedRewards()">إضافة المكافآت الافتراضية</button></div>`}
+  else c.innerHTML=REWARDS.map(r=>`<div class="rw-card"><div class="rw-icon" style="background:${r.bg}">${r.icon}</div><div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc||''}</div><div class="rw-cost">${r.cost} نقطة · متاح: ${r.qty}</div></div><button class="btn-xs btn-o" onclick="removeReward('${r.id}')" style="color:var(--err);border-color:var(--err)">حذف</button></div>`).join('');
+  // Redemption requests
+  try{
+    const q=await db.collection('redemptions').orderBy('date','desc').limit(50).get();
+    const reqs=q.docs.map(d=>({id:d.id,...d.data()}));
+    document.getElementById('adm-redeem').innerHTML=reqs.length?reqs.map(r=>`<div class="list-item"><div class="li-icon" style="background:${r.status==='done'?'var(--ok-l)':'var(--warn-l)'}">${r.status==='done'?'✅':'📬'}</div><div class="li-body"><div class="li-title">${r.userName}</div><div class="li-sub">${r.rewardName} · ${r.cost} نقطة · ${new Date(r.date).toLocaleDateString('ar-AE',{day:'numeric',month:'short'})}</div></div>${r.status==='done'?'<div class="li-end" style="color:var(--ok);font-size:11px">تم التسليم</div>':`<button class="btn-xs btn-g" onclick="markDelivered('${r.id}')">تم التسليم</button>`}</div>`).join(''):`<div class="empty"><div class="empty-icon">📬</div><div class="empty-txt">لا توجد طلبات استبدال حالياً</div></div>`;
+  }catch(e){console.error(e)}
+}
+async function markDelivered(id){await db.collection('redemptions').doc(id).update({status:'done'});renderAdminRewards();showToast('✅ تم تحديث الطلب')}
+async function seedRewards(){
+  const batch=db.batch();
+  DEFAULT_REWARDS.forEach(r=>batch.set(db.collection('rewards').doc(),r));
+  await batch.commit();renderAdminRewards();showToast('تمت إضافة المكافآت');
 }
 
 function toggleAddRw(){const f=document.getElementById('add-rw-form');f.style.display=f.style.display==='none'?'block':'none'}
 
-function addReward(){
+async function addReward(){
   const n=document.getElementById('new-rw-name').value.trim();
   const d=document.getElementById('new-rw-desc').value.trim();
   const p=parseInt(document.getElementById('new-rw-pts').value)||0;
   const q=parseInt(document.getElementById('new-rw-qty').value)||0;
   if(!n||!p){showToast('أدخل الاسم والنقاط');return}
   const icons=['🎁','📦','🎫','🏆','💎'];
-  const bgs=['#E8F5F0','#FFF8E7','#F0E8F5','#FFF0E8','#E8F0F5'];
-  const id=Date.now();
-  S.adminRewards.push({id,name:n,desc:d,cost:p,qty:q,icon:icons[Math.floor(Math.random()*icons.length)],bg:bgs[Math.floor(Math.random()*bgs.length)]});
-  save();toggleAddRw();renderAdminRewards();showToast('تمت إضافة المكافأة');
+  await db.collection('rewards').add({name:n,desc:d,cost:p,qty:q,icon:icons[Math.floor(Math.random()*icons.length)],bg:AV_BGS[Math.floor(Math.random()*AV_BGS.length)]});
+  toggleAddRw();renderAdminRewards();showToast('تمت إضافة المكافأة');
   document.getElementById('new-rw-name').value='';document.getElementById('new-rw-desc').value='';
   document.getElementById('new-rw-pts').value='';document.getElementById('new-rw-qty').value='';
 }
 
-function removeReward(id){
-  S.adminRewards=S.adminRewards.filter(r=>r.id!==id);save();renderAdminRewards();showToast('تم حذف المكافأة');
+async function removeReward(id){
+  await db.collection('rewards').doc(id).delete();renderAdminRewards();showToast('تم حذف المكافأة');
 }
 
 // ======== MY BOOKS ========
@@ -1202,9 +1277,9 @@ function calcHours(){
 }
 
 // ======== READING PARTNER ========
-function renderPartner(){
+async function renderPartner(){
   const c=document.getElementById('partner-content');
-  if(!S.hasPartner){
+  if(!S.partnerId){
     c.innerHTML=`
       <div class="card">
         <div class="no-partner">
@@ -1216,87 +1291,69 @@ function renderPartner(){
       </div>
       <div class="card">
         <div class="card-title mb-10">كيف يعمل؟</div>
-        <div class="list-item"><div class="li-icon" style="background:var(--ok-l)">1️⃣</div><div class="li-body"><div class="li-title">اقرأ واكتب ملخصك</div><div class="li-sub">بعد كل جلسة، ملخصك يصل لشريكك</div></div></div>
-        <div class="list-item"><div class="li-icon" style="background:var(--accent-l)">2️⃣</div><div class="li-body"><div class="li-title">قيّم ملخص شريكك</div><div class="li-sub">اقرأ ملخصه وأعطه تقييماً أسبوعياً</div></div></div>
-        <div class="list-item"><div class="li-icon" style="background:var(--warn-l)">3️⃣</div><div class="li-body"><div class="li-title">اكسبا نقاطاً إضافية</div><div class="li-sub">+5 نقاط لكل تقييم تقدّمه</div></div></div>
+        <div class="list-item"><div class="li-icon" style="background:var(--ok-l)">1️⃣</div><div class="li-body"><div class="li-title">اقرأ وسجّل جلساتك</div><div class="li-sub">كل جلسة تنجزها تظهر لشريكك</div></div></div>
+        <div class="list-item"><div class="li-icon" style="background:var(--accent-l)">2️⃣</div><div class="li-body"><div class="li-title">شجّع شريكك</div><div class="li-sub">تابع جلساته وأرسل له تشجيعاً</div></div></div>
+        <div class="list-item"><div class="li-icon" style="background:var(--warn-l)">3️⃣</div><div class="li-body"><div class="li-title">اكسبا نقاطاً إضافية</div><div class="li-sub">+5 نقاط لكل تشجيع تقدّمه</div></div></div>
       </div>`;
     return;
   }
-  // Has partner - show partner's summaries
-  const mySummaries=(S.summaries||[]).slice(0,5);
+  c.innerHTML='<div class="card"><div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div></div></div>';
+  let partner=null;
+  try{const snap=await db.collection('users').doc(S.partnerId).get();if(snap.exists)partner=snap.data()}catch(e){console.error(e)}
+  if(!partner){S.partnerId=null;S.partnerName='';save();renderPartner();return}
+  const pLog=(partner.log||[]).slice(0,5);
+  const myLog=(S.log||[]).slice(0,5);
+  const ratings=S.partnerRatings||[];
+  const fmt=l=>{const d=new Date(l.date);const meta=[l.chapter,l.pgFrom&&l.pgTo?`ص${l.pgFrom}–${l.pgTo}`:'',`${l.dur||15} د`].filter(Boolean).join(' · ');return`<div class="partner-summary-book">📖 ${l.book}</div><div class="partner-summary-txt">${meta}</div><div class="partner-summary-date">${d.toLocaleDateString('ar-AE',{weekday:'long',day:'numeric',month:'short'})}${l.quizScore?' · 🤖 '+l.quizScore+'/5':''}</div>`};
   c.innerHTML=`
     <div class="partner-card highlight">
       <div class="partner-header">
-        <div class="partner-av" style="background:var(--ok-l)">👥</div>
+        <div class="partner-av" style="background:var(--ok-l)">${avOf(partner).av}</div>
         <div class="partner-info">
-          <div class="partner-name">شريكك: ${S.partnerName}</div>
-          <div class="partner-meta">متصل منذ ${Math.floor(Math.random()*14)+1} يوم · ${PARTNER_SUMMARIES.length} ملخصات هذا الأسبوع</div>
+          <div class="partner-name">شريكك: ${partner.name}</div>
+          <div class="partner-meta">${partner.sessions||0} جلسة · سلسلة ${partner.streak||0} يوم · ${partner.pts||0} نقطة</div>
         </div>
       </div>
     </div>
-
     <div class="card">
-      <div class="card-head"><div class="card-title">ملخصات شريكك الأخيرة</div></div>
-      ${PARTNER_SUMMARIES.map((ps,i)=>{
-        const d=new Date(ps.date);
-        const rated=S.partnerRatings&&S.partnerRatings.includes(i);
-        return`<div class="partner-summary-card">
-          <div class="partner-summary-book">📖 ${ps.book}</div>
-          <div class="partner-summary-txt">${ps.text}</div>
-          <div class="partner-summary-date">${d.toLocaleDateString('ar-AE',{weekday:'long',day:'numeric',month:'short'})}</div>
-          ${rated?
-            '<div style="margin-top:8px;font-family:var(--ff);font-size:11px;color:var(--ok);font-weight:600">✅ تم التقييم</div>':
-            `<div class="rate-btns">
-              <button class="rate-btn" onclick="ratePartner(${i},'👍','ممتاز')">👍 ممتاز</button>
-              <button class="rate-btn" onclick="ratePartner(${i},'👌','جيد')">👌 جيد</button>
-              <button class="rate-btn" onclick="ratePartner(${i},'💡','يحتاج تفصيل')">💡 يحتاج تفصيل</button>
-            </div>`}
-        </div>`;
-      }).join('')}
+      <div class="card-head"><div class="card-title">جلسات شريكك الأخيرة</div></div>
+      ${pLog.length?pLog.map(l=>{const rated=ratings.includes(l.date);return`<div class="partner-summary-card">${fmt(l)}
+          ${rated?'<div style="margin-top:8px;font-family:var(--ff);font-size:11px;color:var(--ok);font-weight:600">✅ تم التشجيع</div>':
+          `<div class="rate-btns">
+            <button class="rate-btn" onclick="ratePartner('${l.date}','👏')">👏 أحسنت</button>
+            <button class="rate-btn" onclick="ratePartner('${l.date}','🔥')">🔥 استمر</button>
+            <button class="rate-btn" onclick="ratePartner('${l.date}','📚')">📚 أوصني به</button>
+          </div>`}
+        </div>`}).join(''):`<div class="empty"><div class="empty-icon">✏️</div><div class="empty-txt">لم يبدأ شريكك القراءة بعد</div></div>`}
     </div>
-
     <div class="card">
-      <div class="card-head"><div class="card-title">ملخصاتك الأخيرة</div></div>
-      ${mySummaries.length?mySummaries.map(ms=>{
-        const d=new Date(ms.date);
-        return`<div class="partner-summary-card">
-          <div class="partner-summary-book">📖 ${ms.book}</div>
-          <div class="partner-summary-txt">${ms.text}</div>
-          <div class="partner-summary-date">${d.toLocaleDateString('ar-AE',{weekday:'long',day:'numeric',month:'short'})} · 🤖 ${ms.score}/10</div>
-        </div>`;
-      }).join(''):`<div class="empty"><div class="empty-icon">✏️</div><div class="empty-txt">أكمل جلسة قراءة لتظهر ملخصاتك هنا</div></div>`}
+      <div class="card-head"><div class="card-title">جلساتك الأخيرة</div></div>
+      ${myLog.length?myLog.map(l=>`<div class="partner-summary-card">${fmt(l)}</div>`).join(''):`<div class="empty"><div class="empty-icon">✏️</div><div class="empty-txt">أكمل جلسة قراءة لتظهر هنا</div></div>`}
     </div>
-
     <button class="btn btn-o" style="margin-top:8px" onclick="removePartner()">إلغاء الشراكة</button>`;
 }
 
-function findPartner(){
-  // Simulate partner matching
-  const partners=['فاطمة الحربي','نورة الشامسي','سعيد المهيري','خالد العمري','مريم السويدي'];
-  const chosen=partners[Math.floor(Math.random()*partners.length)];
-  S.hasPartner=true;
-  S.partnerName=chosen;
-  S.partnerRatings=[];
-  save();
-  confetti();
-  showToast('🎉 تم ربطك مع '+chosen);
-  renderPartner();
+async function findPartner(){
+  try{await loadUsers()}catch(e){console.error(e)}
+  const candidates=USERS_CACHE.filter(u=>u.id!==uid&&!u.partnerId);
+  if(!candidates.length){showToast('لا يوجد زملاء متاحون حالياً — جرّب لاحقاً');return}
+  const chosen=candidates[Math.floor(Math.random()*candidates.length)];
+  S.partnerId=chosen.id;S.partnerName=chosen.name;S.partnerRatings=[];save();
+  try{await db.collection('users').doc(chosen.id).update({partnerId:uid,partnerName:S.name})}catch(e){console.error(e)}
+  confetti();showToast('🎉 تم ربطك مع '+chosen.name);renderPartner();
 }
 
-function ratePartner(idx,emoji,label){
+function ratePartner(key,emoji){
   if(!S.partnerRatings)S.partnerRatings=[];
-  S.partnerRatings.push(idx);
-  S.pts+=5;
-  save();
-  refreshAll();
-  renderPartner();
-  showToast(emoji+' شكراً! +5 نقاط للتقييم');
+  S.partnerRatings.push(key);S.pts+=5;save();refreshAll();renderPartner();
+  showToast(emoji+' +5 نقاط لتشجيع شريكك');
 }
 
-function removePartner(){
-  S.hasPartner=false;S.partnerName='';S.partnerRatings=[];
-  save();renderPartner();
-  showToast('تم إلغاء الشراكة');
+async function removePartner(){
+  const pid=S.partnerId;
+  S.partnerId=null;S.partnerName='';S.partnerRatings=[];save();
+  if(pid){try{await db.collection('users').doc(pid).update({partnerId:null,partnerName:''})}catch(e){console.error(e)}}
+  renderPartner();showToast('تم إلغاء الشراكة');
 }
 
 // ======== UTILS ========

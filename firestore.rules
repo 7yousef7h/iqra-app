@@ -1,0 +1,41 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function isAdmin() {
+      return signedIn() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Users: anyone signed in can read (leaderboard, partner).
+    // You can create/update only your own document, and you can never change your own role.
+    match /users/{userId} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.auth.uid == userId
+                    && request.resource.data.role == 'user';
+      allow update: if signedIn() && (
+          (request.auth.uid == userId && request.resource.data.role == resource.data.role)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['partnerId','partnerName']))
+          || isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Rewards: everyone reads; only admins create/delete; users may only decrement qty by 1.
+    match /rewards/{rewardId} {
+      allow read: if signedIn();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() ||
+        (signedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['qty'])
+         && request.resource.data.qty == resource.data.qty - 1);
+    }
+
+    // Redemptions: users create their own; only admins read all / update status.
+    match /redemptions/{id} {
+      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
+      allow read, update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+  }
+}
