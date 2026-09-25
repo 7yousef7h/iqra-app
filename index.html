@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#145C4B">
+<title>اقرأ واكسب</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700;800;900&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --g1: #145C4B; --g2: #0D3F34; --g3: #0A2E26;
+  --accent: #D4A843; --accent-l: #FFF8E7; --accent-d: #B8922F;
+  --bg: #F5F3EE; --sf: #FFFFFF; --sf2: #F9F8F5;
+  --tx: #1A1A1A; --tx2: #555; --tx3: #999; --tx4: #BBB;
+  --bdr: #E8E5DE; --bdr2: #D5D0C8;
+  --ok: #2E9B6F; --ok-l: #E6F7EF;
+  --warn: #E8A835; --warn-l: #FFF6E0;
+  --err: #C0392B; --err-l: #FDE8E8;
+  --r-sm: 10px; --r-md: 16px; --r-lg: 24px; --r-xl: 32px;
+  --sh: 0 2px 16px rgba(0,0,0,0.06);
+  --sh2: 0 8px 32px rgba(0,0,0,0.1);
+  --ff: 'Noto Kufi Arabic', sans-serif;
+  --fb: 'Noto Naskh Arabic', serif;
+}
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1210;--sf:#1A201E;--sf2:#1F2623;
+    --tx:#E5E3DE;--tx2:#A5A5A5;--tx3:#6A6A6A;--tx4:#444;
+    --bdr:#2A2E2B;--bdr2:#353A37;
+    --ok-l:#162E22;--warn-l:#2A2518;--err-l:#2A1818;--accent-l:#2A2518;
+    --sh:0 2px 16px rgba(0,0,0,0.2);--sh2:0 8px 32px rgba(0,0,0,0.3);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1210;--sf:#1A201E;--sf2:#1F2623;
+  --tx:#E5E3DE;--tx2:#A5A5A5;--tx3:#6A6A6A;--tx4:#444;
+  --bdr:#2A2E2B;--bdr2:#353A37;
+  --ok-l:#162E22;--warn-l:#2A2518;--err-l:#2A1818;--accent-l:#2A2518;
+  --sh:0 2px 16px rgba(0,0,0,0.2);--sh2:0 8px 32px rgba(0,0,0,0.3);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0)}
+html{scroll-padding-top:env(safe-area-inset-top,0)}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--fb);background:var(--bg);color:var(--tx);line-height:1.6;-webkit-font-smoothing:antialiased}
+input,button,textarea,select{font-family:inherit}
+
+/* ===== APP SHELL ===== */
+.app{max-width:430px;margin:0 auto;height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden;background:var(--bg)}
+
+/* Screens */
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;transition:transform .35s cubic-bezier(.4,0,.2,1),opacity .35s;z-index:1;background:var(--bg)}
+.screen.hidden{transform:translateX(-30%);opacity:0;pointer-events:none;z-index:0}
+.screen.slide-right{transform:translateX(100%);opacity:0;pointer-events:none;z-index:0}
+
+/* ===== SPLASH ===== */
+#splash{background:linear-gradient(160deg,var(--g1),var(--g2),var(--g3));z-index:50;align-items:center;justify-content:center;color:#fff}
+.splash-logo{font-family:var(--ff);font-size:42px;font-weight:900;margin-bottom:4px}
+.splash-sub{font-size:14px;opacity:.7;margin-bottom:40px}
+.splash-loader{width:40px;height:40px;border:3px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ===== LOGIN ===== */
+#login{background:var(--bg);z-index:40}
+.login-header{background:linear-gradient(160deg,var(--g1),var(--g2));color:#fff;padding:60px 28px 36px;text-align:center;border-radius:0 0 var(--r-xl) var(--r-xl)}
+.login-logo{font-family:var(--ff);font-size:32px;font-weight:900;margin-bottom:4px}
+.login-tagline{font-size:13px;opacity:.75}
+.login-body{padding:28px 24px;flex:1}
+.login-tabs{display:flex;gap:0;margin-bottom:24px;background:var(--sf2);border-radius:var(--r-md);padding:4px;border:1px solid var(--bdr)}
+.login-tab{flex:1;padding:12px;border:none;background:transparent;font-family:var(--ff);font-size:13px;font-weight:600;color:var(--tx3);cursor:pointer;border-radius:12px;transition:all .2s}
+.login-tab.active{background:var(--sf);color:var(--g1);box-shadow:var(--sh)}
+.field{margin-bottom:16px}
+.field label{display:block;font-family:var(--ff);font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:6px}
+.field input,.field select{width:100%;padding:14px 16px;border:2px solid var(--bdr);border-radius:var(--r-sm);font-size:15px;background:var(--sf);color:var(--tx);transition:border-color .2s}
+.field input:focus,.field select:focus{outline:none;border-color:var(--g1)}
+.field input::placeholder{color:var(--tx4)}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:16px;border:none;border-radius:var(--r-md);font-family:var(--ff);font-size:15px;font-weight:700;cursor:pointer;transition:all .15s}
+.btn:active{transform:scale(.97)}
+.btn-g{background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff}
+.btn-o{background:transparent;border:2px solid var(--g1);color:var(--g1)}
+.btn-a{background:var(--accent);color:#fff}
+.btn-sm{padding:10px 20px;font-size:13px;width:auto;border-radius:var(--r-sm)}
+.btn-xs{padding:7px 14px;font-size:11px;width:auto;border-radius:8px}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.login-footer{text-align:center;padding:16px;font-size:12px;color:var(--tx3)}
+
+/* ===== MAIN APP ===== */
+#main{z-index:30}
+.main-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:80px}
+
+/* Tab Bar */
+.tab-bar{position:absolute;bottom:0;left:0;right:0;display:flex;background:var(--sf);border-top:1px solid var(--bdr);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0));z-index:20}
+.tab-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;border:none;background:transparent;cursor:pointer;color:var(--tx3);transition:color .2s}
+.tab-item.active{color:var(--g1)}
+.tab-icon{font-size:22px;line-height:1}
+.tab-label{font-family:var(--ff);font-size:10px;font-weight:600}
+
+/* Pages */
+.page{display:none;padding:0 20px 20px}
+.page.active{display:block}
+
+/* Top bar */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 8px;position:sticky;top:0;background:var(--bg);z-index:10}
+.topbar-title{font-family:var(--ff);font-size:20px;font-weight:800}
+.topbar-avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--g1),var(--g2));display:flex;align-items:center;justify-content:center;color:#fff;font-size:16px;cursor:pointer}
+.topbar-badge{display:flex;align-items:center;gap:6px;background:var(--accent-l);padding:6px 14px;border-radius:20px;font-family:var(--ff);font-size:12px;font-weight:700;color:var(--accent-d)}
+
+/* Cards */
+.card{background:var(--sf);border-radius:var(--r-md);padding:20px;margin-bottom:14px;box-shadow:var(--sh)}
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title{font-family:var(--ff);font-size:13px;font-weight:700;color:var(--tx2)}
+.card-link{font-family:var(--ff);font-size:12px;color:var(--g1);font-weight:600;cursor:pointer;border:none;background:transparent}
+
+/* Hero Stats */
+.hero-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:14px}
+.hero-stat{background:var(--sf);border-radius:var(--r-md);padding:18px 10px;text-align:center;box-shadow:var(--sh);position:relative;overflow:hidden}
+.hero-stat::before{content:'';position:absolute;top:0;right:0;left:0;height:3px}
+.hero-stat:nth-child(1)::before{background:var(--g1)}
+.hero-stat:nth-child(2)::before{background:var(--accent)}
+.hero-stat:nth-child(3)::before{background:var(--ok)}
+.hs-val{font-family:var(--ff);font-size:30px;font-weight:900;line-height:1}
+.hs-val.green{color:var(--g1)}
+.hs-val.gold{color:var(--accent-d)}
+.hs-val.teal{color:var(--ok)}
+.hs-lbl{font-size:11px;color:var(--tx3);margin-top:4px}
+
+/* Progress Ring */
+.reward-prog{display:flex;align-items:center;gap:16px}
+.prog-ring{position:relative;width:56px;height:56px;flex-shrink:0}
+.prog-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.prog-ring .tk{fill:none;stroke:var(--bdr);stroke-width:5}
+.prog-ring .pg{fill:none;stroke:var(--g1);stroke-width:5;stroke-linecap:round;transition:stroke-dashoffset .5s}
+.prog-center{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--ff);font-size:12px;font-weight:800;color:var(--g1)}
+.prog-info{flex:1}
+.prog-title{font-family:var(--ff);font-size:14px;font-weight:700}
+.prog-sub{font-size:12px;color:var(--tx3);margin-top:2px}
+
+/* Week Grid */
+.week-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:10px}
+.wk-day{text-align:center}
+.wk-lbl{font-family:var(--ff);font-size:9px;color:var(--tx3);margin-bottom:4px}
+.wk-dot{width:34px;height:34px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:14px}
+.wk-dot.done{background:var(--g1);color:#fff}
+.wk-dot.today{background:var(--accent-l);border:2px solid var(--accent)}
+.wk-dot.future{background:var(--sf2);border:1px solid var(--bdr)}
+
+/* Timer */
+.timer-wrap{text-align:center;padding:10px 0}
+.timer-circle{position:relative;width:240px;height:240px;margin:0 auto 24px}
+.timer-circle svg{width:100%;height:100%;transform:rotate(-90deg)}
+.timer-circle .tk{fill:none;stroke:var(--bdr);stroke-width:6}
+.timer-circle .pg{fill:none;stroke:url(#timerGrad);stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset 1s linear}
+.timer-inner{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.timer-val{font-family:var(--ff);font-size:52px;font-weight:900;color:var(--tx);line-height:1}
+.timer-lbl{font-size:13px;color:var(--tx3);margin-top:6px}
+.dur-picker{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;justify-content:center}
+.dur-btn{padding:10px 0;flex:1;min-width:60px;border:2px solid var(--bdr);border-radius:var(--r-sm);background:var(--sf);font-family:var(--ff);font-size:13px;font-weight:600;color:var(--tx2);cursor:pointer;transition:all .15s;text-align:center}
+.dur-btn.active{border-color:var(--g1);background:var(--g1);color:#fff}
+.dur-btn:active{transform:scale(.95)}
+.dur-custom{display:none;align-items:center;gap:8px;justify-content:center;margin-bottom:16px}
+.dur-custom.show{display:flex}
+.dur-custom input{width:80px;padding:10px;border:2px solid var(--bdr);border-radius:var(--r-sm);font-family:var(--ff);font-size:16px;font-weight:700;text-align:center;background:var(--sf);color:var(--tx)}
+.dur-custom input:focus{outline:none;border-color:var(--g1)}
+.dur-custom span{font-size:13px;color:var(--tx2)}
+.book-field{margin-bottom:20px}
+.book-field input{width:100%;padding:14px 18px;border:2px solid var(--bdr);border-radius:var(--r-md);font-size:15px;background:var(--sf);color:var(--tx);text-align:center}
+.book-field input:focus{outline:none;border-color:var(--g1)}
+.book-field input::placeholder{color:var(--tx4)}
+.session-done-card{background:linear-gradient(135deg,var(--ok-l),var(--sf));border:2px solid var(--ok);border-radius:var(--r-md);padding:24px;text-align:center;margin-top:16px}
+.sd-icon{font-size:44px;margin-bottom:8px}
+.sd-title{font-family:var(--ff);font-size:18px;font-weight:800;color:var(--ok)}
+.sd-sub{font-size:13px;color:var(--tx2);margin-top:4px}
+
+/* List items */
+.list-item{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid var(--bdr)}
+.list-item:last-child{border-bottom:none}
+.li-icon{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.li-body{flex:1;min-width:0}
+.li-title{font-family:var(--ff);font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-sub{font-size:11px;color:var(--tx3);margin-top:1px}
+.li-end{font-family:var(--ff);font-weight:700;font-size:14px;white-space:nowrap;flex-shrink:0}
+
+/* Rank */
+.rank-num{width:28px;font-family:var(--ff);font-size:16px;font-weight:900;text-align:center;flex-shrink:0}
+.rank-1{color:#D4A843}.rank-2{color:#8A8A8A}.rank-3{color:#B07C4A}
+
+/* Reward cards */
+.rw-card{display:flex;align-items:center;gap:14px;background:var(--sf);border-radius:var(--r-md);padding:16px;box-shadow:var(--sh);margin-bottom:10px}
+.rw-icon{width:50px;height:50px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+.rw-body{flex:1;min-width:0}
+.rw-name{font-family:var(--ff);font-size:13px;font-weight:700}
+.rw-desc{font-size:11px;color:var(--tx3);margin-top:2px}
+.rw-cost{font-family:var(--ff);font-size:12px;font-weight:800;color:var(--g1);margin-top:4px}
+
+/* Admin */
+.admin-stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.ad-stat{background:var(--sf);border-radius:var(--r-md);padding:18px 16px;box-shadow:var(--sh)}
+.ad-stat-val{font-family:var(--ff);font-size:26px;font-weight:900;color:var(--g1)}
+.ad-stat-lbl{font-size:11px;color:var(--tx3);margin-top:2px}
+.ad-stat-chg{font-family:var(--ff);font-size:11px;font-weight:600;color:var(--ok);margin-top:4px}
+
+.emp-row{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid var(--bdr)}
+.emp-row:last-child{border-bottom:none}
+.emp-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.emp-info{flex:1}
+.emp-name{font-family:var(--ff);font-size:13px;font-weight:700}
+.emp-meta{font-size:11px;color:var(--tx3)}
+.emp-badge{padding:4px 10px;border-radius:20px;font-family:var(--ff);font-size:10px;font-weight:700}
+.emp-badge.active{background:var(--ok-l);color:var(--ok)}
+.emp-badge.inactive{background:var(--err-l);color:var(--err)}
+
+/* Manage Rewards (Admin) */
+.add-rw-form{padding:16px;background:var(--sf2);border-radius:var(--r-md);margin-bottom:16px;border:1px dashed var(--bdr2)}
+.add-rw-form .field{margin-bottom:12px}
+.add-rw-form input{padding:12px 14px;font-size:14px}
+
+/* Profile */
+.profile-header{text-align:center;padding:20px 0}
+.profile-avatar{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--g1),var(--g2));margin:0 auto 12px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:28px}
+.profile-name{font-family:var(--ff);font-size:18px;font-weight:800}
+.profile-role{font-size:13px;color:var(--tx3)}
+.profile-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:var(--bdr);border-radius:var(--r-md);overflow:hidden;margin:20px 0}
+.ps-item{background:var(--sf);padding:16px 8px;text-align:center}
+.ps-val{font-family:var(--ff);font-size:22px;font-weight:900;color:var(--g1)}
+.ps-lbl{font-size:10px;color:var(--tx3);margin-top:2px}
+
+/* Settings row */
+.setting-row{display:flex;align-items:center;gap:14px;padding:16px;background:var(--sf);border-radius:var(--r-md);margin-bottom:8px;cursor:pointer;box-shadow:var(--sh)}
+.setting-icon{font-size:20px;width:36px;height:36px;border-radius:var(--r-sm);display:flex;align-items:center;justify-content:center}
+.setting-label{flex:1;font-family:var(--ff);font-size:13px;font-weight:600}
+.setting-arrow{color:var(--tx4);font-size:16px}
+
+/* Modal */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:flex-end;justify-content:center}
+.modal-bg.open{display:flex}
+.modal-sheet{background:var(--sf);border-radius:var(--r-xl) var(--r-xl) 0 0;padding:8px 24px calc(24px + env(safe-area-inset-bottom,0));max-width:430px;width:100%;max-height:85vh;overflow-y:auto;animation:slideUp .3s}
+@keyframes slideUp{from{transform:translateY(100%)}}
+.modal-handle{width:36px;height:4px;background:var(--bdr2);border-radius:2px;margin:0 auto 20px}
+.modal-title{font-family:var(--ff);font-size:18px;font-weight:800;margin-bottom:16px;text-align:center}
+
+/* Quiz */
+.quiz-q{font-size:15px;line-height:1.8;margin-bottom:16px;text-align:center}
+.quiz-opt{display:block;width:100%;padding:14px;border:2px solid var(--bdr);border-radius:var(--r-sm);background:var(--sf);font-size:14px;color:var(--tx);cursor:pointer;margin-bottom:8px;text-align:right;transition:all .15s;font-family:var(--fb)}
+.quiz-opt:hover{border-color:var(--g1);background:var(--ok-l)}
+.quiz-opt.picked{border-color:var(--ok);background:var(--ok-l);color:var(--ok);font-weight:700}
+
+/* Chart bar */
+.chart-bars{display:flex;align-items:flex-end;gap:8px;height:120px;padding:10px 0}
+.chart-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.chart-bar{width:100%;border-radius:6px 6px 0 0;background:linear-gradient(to top,var(--g1),var(--ok));transition:height .5s;min-height:4px}
+.chart-lbl{font-family:var(--ff);font-size:9px;color:var(--tx3)}
+.chart-val{font-family:var(--ff);font-size:10px;font-weight:700;color:var(--g1)}
+
+/* Notif */
+.toast{position:fixed;top:calc(20px + env(safe-area-inset-top,0));left:50%;transform:translateX(-50%) translateY(-120%);background:var(--g1);color:#fff;padding:14px 24px;border-radius:var(--r-md);font-family:var(--ff);font-size:13px;font-weight:600;box-shadow:var(--sh2);z-index:200;transition:transform .3s;max-width:360px;text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* Confetti */
+@keyframes cfall{0%{transform:translateY(-60px) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+.confetti{position:fixed;top:0;z-index:200;pointer-events:none}
+
+/* Empty */
+.empty{text-align:center;padding:40px 20px;color:var(--tx3)}
+.empty-icon{font-size:40px;margin-bottom:10px}
+.empty-txt{font-size:13px}
+
+/* AI Summary */
+.summary-area textarea{width:100%;min-height:100px;padding:14px;border:2px solid var(--bdr);border-radius:var(--r-sm);font-family:var(--fb);font-size:14px;line-height:1.8;background:var(--sf);color:var(--tx);resize:vertical}
+.summary-area textarea:focus{outline:none;border-color:var(--g1)}
+.summary-area textarea::placeholder{color:var(--tx4)}
+.ai-eval{margin-top:16px;padding:16px;border-radius:var(--r-md);animation:fadeIn .4s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.ai-eval.good{background:var(--ok-l);border:2px solid var(--ok)}
+.ai-eval.weak{background:var(--warn-l);border:2px solid var(--warn)}
+.ai-eval-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.ai-eval-icon{font-size:24px}
+.ai-eval-title{font-family:var(--ff);font-size:14px;font-weight:700}
+.ai-eval-title.good{color:var(--ok)}
+.ai-eval-title.weak{color:var(--warn)}
+.ai-eval-body{font-size:13px;line-height:1.7;color:var(--tx2)}
+.ai-eval-score{display:inline-flex;align-items:center;gap:4px;padding:4px 12px;border-radius:20px;font-family:var(--ff);font-size:12px;font-weight:700;margin-top:8px}
+.ai-eval-score.good{background:var(--ok);color:#fff}
+.ai-eval-score.weak{background:var(--warn);color:#fff}
+.ai-loading{text-align:center;padding:20px}
+.ai-dots{display:inline-flex;gap:6px}
+.ai-dots span{width:8px;height:8px;border-radius:50%;background:var(--g1);animation:pulse 1.2s infinite}
+.ai-dots span:nth-child(2){animation-delay:.2s}
+.ai-dots span:nth-child(3){animation-delay:.4s}
+@keyframes pulse{0%,80%,100%{opacity:.3;transform:scale(.8)}40%{opacity:1;transform:scale(1.1)}}
+.char-count{text-align:left;font-size:11px;color:var(--tx3);margin-top:4px}
+
+/* Partner */
+.partner-card{background:var(--sf);border-radius:var(--r-md);padding:20px;box-shadow:var(--sh);margin-bottom:14px;border:2px solid transparent}
+
+/* Book Progress */
+.book-prog-card{background:var(--sf);border-radius:var(--r-md);padding:18px;box-shadow:var(--sh);margin-bottom:12px}
+.book-prog-head{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.book-prog-icon{width:44px;height:56px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.book-prog-info{flex:1;min-width:0}
+.book-prog-title{font-family:var(--ff);font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.book-prog-meta{font-size:11px;color:var(--tx3);margin-top:2px}
+.book-prog-bar{width:100%;height:6px;background:var(--bdr);border-radius:3px;overflow:hidden;margin-top:8px}
+.book-prog-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--g1),var(--ok));transition:width .5s}
+.book-prog-chapters{margin-top:10px;display:flex;flex-wrap:wrap;gap:4px}
+.book-chap-tag{padding:3px 8px;border-radius:12px;font-family:var(--ff);font-size:10px;font-weight:600;background:var(--ok-l);color:var(--ok)}
+/* Quiz dots */
+.qz-dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--bdr)}
+.qz-dot.correct{background:var(--ok);border-color:var(--ok)}
+.qz-dot.wrong{background:var(--err);border-color:var(--err)}
+.qz-dot.current{border-color:var(--g1)}
+.quiz-opt.correct{border-color:var(--ok)!important;background:var(--ok-l)!important;color:var(--ok)!important}
+.quiz-opt.wrong{border-color:var(--err)!important;background:var(--err-l)!important;color:var(--err)!important}
+.partner-card.highlight{border-color:var(--accent)}
+.partner-header{display:flex;align-items:center;gap:14px;margin-bottom:14px}
+.partner-av{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.partner-info{flex:1}
+.partner-name{font-family:var(--ff);font-size:15px;font-weight:700}
+.partner-meta{font-size:12px;color:var(--tx3)}
+.partner-summary-card{background:var(--sf2);border-radius:var(--r-sm);padding:14px;margin-bottom:12px}
+.partner-summary-book{font-family:var(--ff);font-size:12px;font-weight:600;color:var(--g1);margin-bottom:6px}
+.partner-summary-txt{font-size:13px;line-height:1.7;color:var(--tx2)}
+.partner-summary-date{font-size:10px;color:var(--tx4);margin-top:6px}
+.rate-btns{display:flex;gap:8px;margin-top:10px}
+.rate-btn{flex:1;padding:10px;border:2px solid var(--bdr);border-radius:var(--r-sm);background:var(--sf);font-family:var(--ff);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .15s}
+.rate-btn:active{transform:scale(.95)}
+.rate-btn.rated{border-color:var(--ok);background:var(--ok-l);color:var(--ok)}
+.no-partner{text-align:center;padding:30px 20px}
+.no-partner-icon{font-size:48px;margin-bottom:12px}
+.no-partner-title{font-family:var(--ff);font-size:16px;font-weight:700;margin-bottom:6px}
+.no-partner-sub{font-size:13px;color:var(--tx3);margin-bottom:16px;line-height:1.7}
+
+/* Utility */
+.mt-8{margin-top:8px}.mt-16{margin-top:16px}.mb-10{margin-bottom:10px}.mb-16{margin-bottom:16px}
+.txt-c{text-align:center}
+.gap-8{gap:8px}
+.flex-row{display:flex;align-items:center}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+
+<!-- ===== SPLASH ===== -->
+<div class="screen" id="splash">
+  <div class="splash-logo">📖 اقرأ واكسب</div>
+  <div class="splash-sub">كل جلسة قراءة تقرّبك من مكافأتك</div>
+  <div class="splash-loader"></div>
+</div>
+
+<!-- ===== LOGIN ===== -->
+<div class="screen hidden" id="login">
+  <div class="login-header">
+    <div class="login-logo">اقرأ واكسب</div>
+    <div class="login-tagline">سجّل دخولك وابدأ رحلة القراءة</div>
+  </div>
+  <div class="login-body">
+    <div class="login-tabs">
+      <button class="login-tab active" onclick="switchLoginTab('emp')">موظف</button>
+      <button class="login-tab" onclick="switchLoginTab('admin')">مدير</button>
+    </div>
+    <div id="login-emp">
+      <div class="field"><label>اسمك</label><input id="emp-name" placeholder="مثال: أحمد المنصوري"></div>
+      <div class="field"><label>البريد الإلكتروني</label><input id="emp-email" type="email" placeholder="ahmed@company.ae" dir="ltr"></div>
+      <div class="field"><label>المؤسسة</label>
+        <select id="emp-org">
+          <option value="">اختر مؤسستك</option>
+          <option value="pc">ديوان الرئاسة</option>
+          <option value="moe">وزارة التربية</option>
+          <option value="adnoc">أدنوك</option>
+          <option value="other">جهة أخرى</option>
+        </select>
+      </div>
+      <button class="btn btn-g" onclick="loginAs('emp')">دخول كموظف</button>
+    </div>
+    <div id="login-admin" style="display:none">
+      <div class="field"><label>اسم المدير</label><input id="adm-name" placeholder="مثال: سارة الهاشمي"></div>
+      <div class="field"><label>البريد الإلكتروني</label><input id="adm-email" type="email" placeholder="sara@company.ae" dir="ltr"></div>
+      <div class="field"><label>رمز المؤسسة</label><input id="adm-code" placeholder="الرمز المرسل من إدارة المنصة" dir="ltr"></div>
+      <button class="btn btn-g" onclick="loginAs('admin')">دخول كمدير</button>
+    </div>
+  </div>
+  <div class="login-footer">بالدخول أنت توافق على شروط الاستخدام وسياسة الخصوصية</div>
+</div>
+
+<!-- ===== MAIN ===== -->
+<div class="screen hidden" id="main">
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">الرئيسية</div>
+    <div class="flex-row gap-8">
+      <div class="topbar-badge" id="topbar-points">🪙 0</div>
+      <div class="topbar-avatar" id="topbar-avatar" onclick="showPage('profile')">👤</div>
+    </div>
+  </div>
+
+  <div class="main-content" id="main-scroll">
+
+    <!-- HOME -->
+    <div class="page active" id="pg-home">
+      <div class="hero-stats">
+        <div class="hero-stat"><div class="hs-val green" id="h-sessions">0</div><div class="hs-lbl">جلسة</div></div>
+        <div class="hero-stat"><div class="hs-val gold" id="h-streak">0</div><div class="hs-lbl">يوم متواصل</div></div>
+        <div class="hero-stat"><div class="hs-val teal" id="h-hours">0</div><div class="hs-lbl">ساعة قراءة</div></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">التقدّم نحو المكافأة</div><div class="card-link" onclick="showPage('rewards')">المتجر ←</div></div>
+        <div class="reward-prog">
+          <div class="prog-ring">
+            <svg viewBox="0 0 56 56"><circle class="tk" cx="28" cy="28" r="24"/><circle class="pg" id="rp-circle" cx="28" cy="28" r="24" stroke-dasharray="150.8" stroke-dashoffset="150.8"/></svg>
+            <div class="prog-center" id="rp-pct">0%</div>
+          </div>
+          <div class="prog-info">
+            <div class="prog-title" id="rp-text">0 من 50 جلسة</div>
+            <div class="prog-sub">أكمل 50 جلسة للحصول على أول مكافأة</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">هذا الأسبوع</div></div>
+        <div class="week-grid" id="week-grid"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">قراءات الأسبوع</div></div>
+        <div class="chart-bars" id="week-chart"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><div class="card-title">الترتيب</div><div class="card-link" onclick="showPage('board')">عرض الكل ←</div></div>
+        <div id="home-board"></div>
+      </div>
+    </div>
+
+    <!-- TIMER -->
+    <div class="page" id="pg-timer">
+      <div class="card">
+        <div class="card-title mb-10">بيانات الجلسة</div>
+        <div class="book-field"><input id="t-book" placeholder="📚 اسم الكتاب" list="book-history"><datalist id="book-history"></datalist></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+          <div class="book-field" style="margin:0"><input id="t-chapter" placeholder="📑 الفصل (اختياري)"></div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input id="t-pg-from" type="number" min="1" placeholder="من ص" dir="ltr" style="flex:1;padding:14px 8px;border:2px solid var(--bdr);border-radius:var(--r-sm);font-size:14px;text-align:center;background:var(--sf);color:var(--tx)">
+            <span style="color:var(--tx3);font-size:13px">→</span>
+            <input id="t-pg-to" type="number" min="1" placeholder="إلى ص" dir="ltr" style="flex:1;padding:14px 8px;border:2px solid var(--bdr);border-radius:var(--r-sm);font-size:14px;text-align:center;background:var(--sf);color:var(--tx)">
+          </div>
+        </div>
+        <div class="card-title mb-10" style="text-align:center">مدة الجلسة</div>
+        <div class="dur-picker" id="dur-picker">
+          <button class="dur-btn" onclick="pickDur(2,this)">2 د</button>
+          <button class="dur-btn" onclick="pickDur(5,this)">5 د</button>
+          <button class="dur-btn" onclick="pickDur(10,this)">10 د</button>
+          <button class="dur-btn active" onclick="pickDur(15,this)">15 د</button>
+          <button class="dur-btn" onclick="pickDur(-1,this)">⏱ مخصص</button>
+        </div>
+        <div class="dur-custom" id="dur-custom">
+          <input type="number" id="dur-input" min="1" max="120" value="20" dir="ltr">
+          <span>دقيقة</span>
+          <button class="btn-xs btn-g" onclick="applyCustomDur()">تطبيق</button>
+        </div>
+        <div class="timer-wrap">
+          <div class="timer-circle">
+            <svg viewBox="0 0 240 240">
+              <defs><linearGradient id="timerGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#145C4B"/><stop offset="100%" stop-color="#2E9B6F"/></linearGradient></defs>
+              <circle class="tk" cx="120" cy="120" r="108"/>
+              <circle class="pg" id="t-prog" cx="120" cy="120" r="108" stroke-dasharray="678.6" stroke-dashoffset="678.6"/>
+            </svg>
+            <div class="timer-inner">
+              <div class="timer-val" id="t-val">15:00</div>
+              <div class="timer-lbl" id="t-lbl">جاهز للبدء</div>
+            </div>
+          </div>
+          <button class="btn btn-g" id="t-btn" onclick="toggleTimer()">▶ ابدأ جلسة القراءة</button>
+        </div>
+        <div class="session-done-card" id="t-done" style="display:none">
+          <div class="sd-icon">🎉</div>
+          <div class="sd-title">أحسنت! أنجزت جلسة اليوم</div>
+          <div class="sd-sub">عُد غداً لمواصلة سلسلتك</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MY BOOKS -->
+    <div class="page" id="pg-books">
+      <div id="books-list"></div>
+    </div>
+
+    <!-- LEADERBOARD -->
+    <div class="page" id="pg-board">
+      <div class="card" id="board-full"></div>
+    </div>
+
+    <!-- REWARDS -->
+    <div class="page" id="pg-rewards">
+      <div class="card" style="background:linear-gradient(135deg,var(--g1),var(--g2));color:#fff;text-align:center">
+        <div style="font-size:12px;opacity:.8">رصيدك</div>
+        <div style="font-family:var(--ff);font-size:40px;font-weight:900" id="rw-bal">0</div>
+        <div style="font-size:12px;opacity:.8">نقطة</div>
+      </div>
+      <div class="card-title mb-10 mt-16">المكافآت المتاحة</div>
+      <div id="rw-list"></div>
+    </div>
+
+    <!-- LOG -->
+    <div class="page" id="pg-log">
+      <div class="card">
+        <div class="card-title mb-10">سجل جلساتي</div>
+        <div id="log-list"></div>
+      </div>
+    </div>
+
+    <!-- PROFILE -->
+    <div class="page" id="pg-profile">
+      <div class="card">
+        <div class="profile-header">
+          <div class="profile-avatar" id="pf-avatar">👤</div>
+          <div class="profile-name" id="pf-name">—</div>
+          <div class="profile-role" id="pf-role">—</div>
+        </div>
+        <div class="profile-stats">
+          <div class="ps-item"><div class="ps-val" id="pf-s">0</div><div class="ps-lbl">جلسة</div></div>
+          <div class="ps-item"><div class="ps-val" id="pf-h">0</div><div class="ps-lbl">ساعة</div></div>
+          <div class="ps-item"><div class="ps-val" id="pf-b">0</div><div class="ps-lbl">كتاب</div></div>
+        </div>
+      </div>
+      <div class="setting-row" onclick="showToast('قريباً — إعدادات الإشعارات')">
+        <div class="setting-icon" style="background:var(--ok-l)">🔔</div>
+        <div class="setting-label">الإشعارات</div>
+        <div class="setting-arrow">‹</div>
+      </div>
+      <div class="setting-row" onclick="showToast('قريباً — تغيير اللغة')">
+        <div class="setting-icon" style="background:var(--accent-l)">🌐</div>
+        <div class="setting-label">اللغة</div>
+        <div class="setting-arrow">‹</div>
+      </div>
+      <div class="setting-row" onclick="showToast('قريباً — المساعدة والدعم')">
+        <div class="setting-icon" style="background:var(--warn-l)">❓</div>
+        <div class="setting-label">المساعدة</div>
+        <div class="setting-arrow">‹</div>
+      </div>
+      <div class="setting-row" onclick="logout()" style="margin-top:12px">
+        <div class="setting-icon" style="background:var(--err-l)">🚪</div>
+        <div class="setting-label" style="color:var(--err)">تسجيل الخروج</div>
+        <div class="setting-arrow">‹</div>
+      </div>
+    </div>
+
+    <!-- PARTNER -->
+    <div class="page" id="pg-partner">
+      <div id="partner-content"></div>
+    </div>
+
+    <!-- ===== ADMIN PAGES ===== -->
+    <div class="page" id="pg-adm-home">
+      <div class="admin-stat-grid">
+        <div class="ad-stat"><div class="ad-stat-val">47</div><div class="ad-stat-lbl">موظف مسجّل</div><div class="ad-stat-chg">↑ 12 هذا الشهر</div></div>
+        <div class="ad-stat"><div class="ad-stat-val">312</div><div class="ad-stat-lbl">جلسة هذا الشهر</div><div class="ad-stat-chg">↑ 23%</div></div>
+        <div class="ad-stat"><div class="ad-stat-val">78<span style="font-size:14px">ساعة</span></div><div class="ad-stat-lbl">إجمالي القراءة</div><div class="ad-stat-chg">↑ 18%</div></div>
+        <div class="ad-stat"><div class="ad-stat-val">68%</div><div class="ad-stat-lbl">معدل الاحتفاظ</div><div class="ad-stat-chg">↑ 5%</div></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">نشاط القراءة الأسبوعي</div></div>
+        <div class="chart-bars" id="adm-chart"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">أنشط الموظفين</div></div>
+        <div id="adm-top"></div>
+      </div>
+    </div>
+
+    <div class="page" id="pg-adm-emp">
+      <div class="card">
+        <div class="card-head"><div class="card-title">الموظفون (47)</div></div>
+        <div class="field" style="margin-bottom:12px"><input placeholder="🔍 بحث عن موظف..." id="adm-search" oninput="filterEmps()"></div>
+        <div id="adm-emp-list"></div>
+      </div>
+    </div>
+
+    <div class="page" id="pg-adm-rw">
+      <div class="card">
+        <div class="card-head"><div class="card-title">إدارة المكافآت</div><button class="btn-xs btn-g" onclick="toggleAddRw()">+ إضافة</button></div>
+        <div class="add-rw-form" id="add-rw-form" style="display:none">
+          <div class="field"><label>اسم المكافأة</label><input id="new-rw-name" placeholder="مثال: قسيمة كتاب"></div>
+          <div class="field"><label>الوصف</label><input id="new-rw-desc" placeholder="مثال: من مكتبة جرير"></div>
+          <div class="field"><label>النقاط المطلوبة</label><input id="new-rw-pts" type="number" placeholder="500" dir="ltr"></div>
+          <div class="field"><label>العدد المتاح</label><input id="new-rw-qty" type="number" placeholder="10" dir="ltr"></div>
+          <div class="flex-row gap-8">
+            <button class="btn btn-g btn-sm" onclick="addReward()">حفظ</button>
+            <button class="btn btn-o btn-sm" onclick="toggleAddRw()">إلغاء</button>
+          </div>
+        </div>
+        <div id="adm-rw-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">طلبات الاستبدال</div></div>
+        <div id="adm-redeem"></div>
+      </div>
+    </div>
+
+    <div class="page" id="pg-adm-profile">
+      <div class="card">
+        <div class="profile-header">
+          <div class="profile-avatar">👩‍💼</div>
+          <div class="profile-name" id="apf-name">—</div>
+          <div class="profile-role">مدير البرنامج</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title mb-10">إعدادات المؤسسة</div>
+        <div class="setting-row" onclick="showToast('قريباً — إعدادات رمز الدعوة')">
+          <div class="setting-icon" style="background:var(--ok-l)">🔗</div>
+          <div class="setting-label">رمز دعوة الموظفين: PC-2026</div>
+          <div class="setting-arrow">‹</div>
+        </div>
+        <div class="setting-row" onclick="showToast('قريباً — تعديل بيانات المؤسسة')">
+          <div class="setting-icon" style="background:var(--accent-l)">🏢</div>
+          <div class="setting-label">بيانات المؤسسة</div>
+          <div class="setting-arrow">‹</div>
+        </div>
+      </div>
+      <div class="setting-row" onclick="logout()">
+        <div class="setting-icon" style="background:var(--err-l)">🚪</div>
+        <div class="setting-label" style="color:var(--err)">تسجيل الخروج</div>
+        <div class="setting-arrow">‹</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar" id="tab-bar"></div>
+</div>
+</div>
+
+<!-- AI Quiz Modal -->
+<div class="modal-bg" id="quiz-modal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="qz-title">🤖 اختبار القراءة</div>
+    <div id="qz-loading" style="display:none">
+      <div class="ai-loading">
+        <div style="font-size:28px;margin-bottom:10px">🤖</div>
+        <div style="font-family:var(--ff);font-size:13px;font-weight:600;color:var(--tx2);margin-bottom:6px">جارٍ تحضير الأسئلة من محتوى قراءتك...</div>
+        <div style="font-size:11px;color:var(--tx3);margin-bottom:12px" id="qz-context"></div>
+        <div class="ai-dots"><span></span><span></span><span></span></div>
+      </div>
+    </div>
+    <div id="qz-content" style="display:none">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+        <div style="font-family:var(--ff);font-size:12px;color:var(--tx3)">السؤال <span id="qz-num">1</span> من 5</div>
+        <div style="display:flex;gap:4px" id="qz-dots"></div>
+      </div>
+      <div class="quiz-q" id="qz-text" style="text-align:right;font-size:15px;line-height:1.8;margin-bottom:16px"></div>
+      <div id="qz-opts"></div>
+    </div>
+    <div id="qz-result" style="display:none"></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ======== STATE ========
+let DURATION = 15 * 60;
+let chosenMin = 15;
+const PTS_PER_SESSION = 10;
+const GOAL = 50;
+let S, mode, timerInt, timeLeft = DURATION, running = false;
+
+function pickDur(m, btn){
+  if(running) return;
+  document.querySelectorAll('.dur-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(m === -1){
+    document.getElementById('dur-custom').classList.add('show');
+    return;
+  }
+  document.getElementById('dur-custom').classList.remove('show');
+  chosenMin = m;
+  DURATION = m * 60;
+  timeLeft = DURATION;
+  updateTimer();
+}
+function applyCustomDur(){
+  const v = parseInt(document.getElementById('dur-input').value) || 15;
+  const clamped = Math.max(1, Math.min(120, v));
+  chosenMin = clamped;
+  DURATION = clamped * 60;
+  timeLeft = DURATION;
+  document.getElementById('dur-input').value = clamped;
+  document.getElementById('dur-custom').classList.remove('show');
+  updateTimer();
+}
+
+const FAKE_USERS = [
+  {name:'فاطمة الحربي',sessions:42,pts:420,streak:14,av:'👩‍💼',bg:'#E8F5F0'},
+  {name:'نورة الشامسي',sessions:38,pts:380,streak:11,av:'👩‍🏫',bg:'#FFF8E7'},
+  {name:'سعيد المهيري',sessions:35,pts:350,streak:9,av:'👨‍💻',bg:'#F0E8F5'},
+  {name:'خالد العمري',sessions:30,pts:300,streak:7,av:'👨‍🔬',bg:'#FFF0E8'},
+  {name:'مريم السويدي',sessions:27,pts:270,streak:6,av:'👩‍⚕️',bg:'#E8F0F5'},
+  {name:'عبدالله الكتبي',sessions:22,pts:220,streak:5,av:'👨‍🎓',bg:'#E8F5F0'},
+  {name:'ليلى الظاهري',sessions:18,pts:180,streak:3,av:'👩‍🎨',bg:'#FFF8E7'},
+  {name:'راشد البلوشي',sessions:15,pts:150,streak:2,av:'👨‍✈️',bg:'#F0E8F5'},
+];
+
+const DEFAULT_REWARDS = [
+  {id:1,name:'قسيمة شراء كتاب',desc:'من جرير أو كلمات',cost:500,icon:'📕',bg:'#E8F5F0',qty:10},
+  {id:2,name:'اشتراك شهري — أبجد',desc:'مكتبة رقمية عربية',cost:300,icon:'📱',bg:'#FFF8E7',qty:20},
+  {id:3,name:'كتاب صوتي مجاني',desc:'من Storytel العربية',cost:200,icon:'🎧',bg:'#F0E8F5',qty:30},
+  {id:4,name:'قهوة مجانية',desc:'من الكافتيريا',cost:100,icon:'☕',bg:'#FFF0E8',qty:50},
+  {id:5,name:'شارة قارئ متميّز',desc:'شارة رقمية للملف',cost:50,icon:'🏅',bg:'#E8F0F5',qty:999},
+];
+
+// Partner fake summaries
+const PARTNER_SUMMARIES = [
+  {book:'العادات الذرية',text:'تحدث الفصل عن قاعدة الدقيقتين: أي عادة جديدة يجب أن تبدأ بأقل من دقيقتين. الفكرة أن التكرار أهم من الكمال، والبداية الصغيرة تكسر حاجز المقاومة النفسية.',date:new Date(Date.now()-86400000).toISOString(),score:9},
+  {book:'فكّر ببطء، فكّر بسرعة',text:'قرأت عن مغالطة التكلفة الغارقة وكيف نستمر في مشاريع فاشلة لأننا استثمرنا فيها وقتاً. كاهنمان يربط هذا بالنظام الأول الذي يكره الخسارة أكثر مما يحب الربح.',date:new Date(Date.now()-172800000).toISOString(),score:8},
+  {book:'إغاثة اللهفان',text:'فصل جميل عن أثر الذنوب على القلب وكيف أن المعاصي تطفئ نور البصيرة. ابن القيم يشبّه القلب بالمرآة التي يعلوها الصدأ كلما أذنب الإنسان.',date:new Date(Date.now()-345600000).toISOString(),score:8},
+];
+
+function defaultState(){return{name:'',email:'',org:'',role:'emp',sessions:0,pts:0,streak:0,lastDate:null,todayDone:false,log:[],rewards:[...DEFAULT_REWARDS],redeemed:[],adminRewards:[...DEFAULT_REWARDS],summaries:[],lastSummary:null,hasPartner:false,partnerName:'',partnerRatings:[],books:{}}}
+function load(){try{const s=localStorage.getItem('iqra2');S=s?JSON.parse(s):defaultState();S.todayDone=S.lastDate===new Date().toDateString()}catch(e){S=defaultState()}}
+function save(){try{localStorage.setItem('iqra2',JSON.stringify(S))}catch(e){}}
+
+// ======== SPLASH & LOGIN ========
+window.addEventListener('DOMContentLoaded',()=>{
+  load();
+  setTimeout(()=>{
+    hide('splash');
+    if(S.name){mode=S.role;show('main');initMain()}
+    else show('login');
+  },1500);
+});
+
+function switchLoginTab(t){
+  document.querySelectorAll('.login-tab').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('login-emp').style.display=t==='emp'?'block':'none';
+  document.getElementById('login-admin').style.display=t==='admin'?'block':'none';
+}
+
+function loginAs(role){
+  if(role==='emp'){
+    const n=document.getElementById('emp-name').value.trim();
+    const e=document.getElementById('emp-email').value.trim();
+    const o=document.getElementById('emp-org').value;
+    if(!n||!e||!o){showToast('يرجى تعبئة جميع الحقول');return}
+    S.name=n;S.email=e;S.org=o;S.role='emp';
+  } else {
+    const n=document.getElementById('adm-name').value.trim();
+    const e=document.getElementById('adm-email').value.trim();
+    if(!n||!e){showToast('يرجى تعبئة جميع الحقول');return}
+    S.name=n;S.email=e;S.role='admin';
+  }
+  mode=S.role;save();hide('login');show('main');initMain();
+}
+
+function logout(){S=defaultState();save();location.reload()}
+
+// ======== NAVIGATION ========
+const EMP_TABS=[
+  {id:'home',icon:'🏠',label:'الرئيسية'},
+  {id:'timer',icon:'⏱️',label:'اقرأ'},
+  {id:'books',icon:'📚',label:'كتبي'},
+  {id:'partner',icon:'👥',label:'شريكي'},
+  {id:'rewards',icon:'🎁',label:'المكافآت'},
+];
+const ADM_TABS=[
+  {id:'adm-home',icon:'📊',label:'لوحة التحكم'},
+  {id:'adm-emp',icon:'👥',label:'الموظفون'},
+  {id:'adm-rw',icon:'🎁',label:'المكافآت'},
+  {id:'adm-profile',icon:'⚙️',label:'الإعدادات'},
+];
+
+function initMain(){
+  const tabs=mode==='admin'?ADM_TABS:EMP_TABS;
+  const bar=document.getElementById('tab-bar');
+  bar.innerHTML=tabs.map((t,i)=>`<button class="tab-item${i===0?' active':''}" onclick="showPage('${t.id}')" data-pg="${t.id}"><div class="tab-icon">${t.icon}</div><div class="tab-label">${t.label}</div></button>`).join('');
+  document.getElementById('topbar-points').style.display=mode==='admin'?'none':'flex';
+  showPage(tabs[0].id);
+  refreshAll();
+}
+
+const PAGE_TITLES={'home':'الرئيسية','timer':'جلسة القراءة','books':'كتبي','partner':'شريك القراءة','rewards':'المكافآت','log':'سجلّي','board':'الترتيب','profile':'حسابي','adm-home':'لوحة التحكم','adm-emp':'الموظفون','adm-rw':'المكافآت','adm-profile':'الإعدادات'};
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const pg=document.getElementById('pg-'+id);
+  if(pg)pg.classList.add('active');
+  document.querySelectorAll('.tab-item').forEach(b=>b.classList.toggle('active',b.dataset.pg===id));
+  document.getElementById('topbar-title').textContent=PAGE_TITLES[id]||'';
+  document.getElementById('main-scroll').scrollTop=0;
+  if(id==='books')renderBooks();
+  if(id==='partner')renderPartner();
+  if(id==='adm-home')renderAdminHome();
+  if(id==='adm-emp')renderAdminEmps();
+  if(id==='adm-rw')renderAdminRewards();
+}
+
+function show(id){document.getElementById(id).classList.remove('hidden','slide-right')}
+function hide(id){document.getElementById(id).classList.add('hidden')}
+
+// ======== TIMER ========
+function toggleTimer(){
+  if(S.todayDone)return;
+  running?stopT():startT();
+}
+function startT(){
+  const inp=document.getElementById('t-book');
+  if(!inp.value.trim()){inp.style.borderColor='var(--err)';inp.setAttribute('placeholder','⚠️ أدخل اسم الكتاب');setTimeout(()=>{inp.style.borderColor='';inp.setAttribute('placeholder','📚 اسم الكتاب')},2000);return}
+  running=true;inp.disabled=true;
+  document.getElementById('t-chapter').disabled=true;
+  document.getElementById('t-pg-from').disabled=true;
+  document.getElementById('t-pg-to').disabled=true;
+  document.querySelectorAll('.dur-btn').forEach(b=>b.disabled=true);
+  document.getElementById('t-btn').innerHTML='⏸ إيقاف مؤقت';document.getElementById('t-btn').className='btn btn-o';
+  document.getElementById('t-lbl').textContent='جارٍ القراءة...';
+  timerInt=setInterval(()=>{timeLeft--;updateTimer();if(timeLeft<=0)endSession()},1000);
+}
+function stopT(){
+  running=false;clearInterval(timerInt);
+  document.querySelectorAll('.dur-btn').forEach(b=>b.disabled=false);
+  document.getElementById('t-btn').innerHTML='▶ متابعة';document.getElementById('t-btn').className='btn btn-g';
+  document.getElementById('t-lbl').textContent='متوقف مؤقتاً';
+}
+function updateTimer(){
+  const m=Math.floor(timeLeft/60),s=timeLeft%60;
+  document.getElementById('t-val').textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  const p=1-(timeLeft/DURATION);
+  document.getElementById('t-prog').style.strokeDashoffset=678.6*(1-p);
+}
+function endSession(){clearInterval(timerInt);running=false;startAIQuiz()}
+
+// ======== AI QUIZ VERIFICATION ========
+let quizData=[], quizIdx=0, quizCorrect=0;
+
+async function startAIQuiz(){
+  const book=document.getElementById('t-book').value.trim();
+  const chapter=document.getElementById('t-chapter').value.trim();
+  const pgFrom=document.getElementById('t-pg-from').value;
+  const pgTo=document.getElementById('t-pg-to').value;
+  let context=book;
+  if(chapter) context+=` — ${chapter}`;
+  if(pgFrom&&pgTo) context+=` (ص ${pgFrom}–${pgTo})`;
+  else if(pgFrom) context+=` (ص ${pgFrom})`;
+
+  document.getElementById('qz-loading').style.display='block';
+  document.getElementById('qz-content').style.display='none';
+  document.getElementById('qz-result').style.display='none';
+  document.getElementById('qz-context').textContent=context;
+  document.getElementById('quiz-modal').classList.add('open');
+  quizIdx=0;quizCorrect=0;
+
+  let prompt=`أنت ممتحن قراءة ذكي في تطبيق عربي. المستخدم يقول إنه قرأ:
+الكتاب: "${book}"`;
+  if(chapter) prompt+=`\nالفصل: "${chapter}"`;
+  if(pgFrom&&pgTo) prompt+=`\nالصفحات: من ${pgFrom} إلى ${pgTo}`;
+  else if(pgFrom) prompt+=`\nمن الصفحة: ${pgFrom}`;
+  prompt+=`
+
+أنشئ 5 أسئلة اختيار من متعدد (4 خيارات) تختبر فهم القارئ لمحتوى هذا الكتاب/الفصل/الصفحات بالتحديد.
+- الأسئلة يجب أن تكون عن الأفكار والمفاهيم الفعلية في الكتاب لا أسئلة عامة
+- سؤالان عن الأفكار الرئيسية، سؤالان عن تفاصيل محددة، وسؤال عن الاستنتاج أو الرأي
+- اجعل الخيارات الخاطئة معقولة وليست سخيفة
+
+أجب بصيغة JSON فقط بدون أي نص آخر:
+{"questions":[{"q":"نص السؤال","opts":["خيار1","خيار2","خيار3","خيار4"],"correct":0,"hint":"تلميح قصير"}]}
+حيث correct هو رقم فهرس الإجابة الصحيحة (0-3)`;
+
+  try{
+    const resp=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:2000,messages:[{role:"user",content:prompt}]})
+    });
+    const data=await resp.json();
+    const text=data.content.map(i=>i.text||'').join('');
+    const clean=text.replace(/```json|```/g,'').trim();
+    quizData=JSON.parse(clean).questions;
+  }catch(e){
+    // Fallback questions
+    quizData=[
+      {q:`ما الموضوع الرئيسي الذي تناوله "${book}" في الجزء الذي قرأته؟`,opts:['فكرة فلسفية عميقة','قصة شخصية ملهمة','تحليل علمي دقيق','نقد اجتماعي'],correct:0,hint:'فكّر في الفكرة المحورية'},
+      {q:'ما الأسلوب الغالب على الكاتب في هذا الجزء؟',opts:['سردي قصصي','تحليلي منطقي','حواري تفاعلي','وصفي تأملي'],correct:1,hint:'تذكّر كيف عرض الكاتب أفكاره'},
+      {q:'أي من هذه الأفكار ذُكرت بوضوح في ما قرأته؟',opts:['أهمية التغيير التدريجي','ضرورة المواجهة المباشرة','فضل العزلة الفكرية','رفض التقاليد كلياً'],correct:0,hint:'ركّز على الرسالة الأساسية'},
+      {q:'لو طلب منك تلخيص ما قرأته في جملة، أيها الأقرب؟',opts:['المعرفة قوة والتطبيق أقوى','السعادة في البساطة فقط','النجاح يتطلب حظاً فقط','التاريخ يعيد نفسه حرفياً'],correct:0,hint:'ما الخلاصة التي خرجت بها؟'},
+      {q:'ما الذي يميّز طرح الكاتب عن الطرح المعتاد لهذا الموضوع؟',opts:['يستخدم أمثلة واقعية','يعتمد على الإحصاء فقط','ينقل آراء الآخرين حصراً','يتجاهل السياق تماماً'],correct:0,hint:'ما الذي لفت انتباهك في أسلوبه؟'},
+    ];
+  }
+
+  document.getElementById('qz-loading').style.display='none';
+  document.getElementById('qz-content').style.display='block';
+  renderQuizQuestion();
+}
+
+function renderQuizQuestion(){
+  const q=quizData[quizIdx];
+  document.getElementById('qz-num').textContent=quizIdx+1;
+  document.getElementById('qz-text').textContent=q.q;
+  // Dots
+  document.getElementById('qz-dots').innerHTML=quizData.map((_,i)=>{
+    let cls='qz-dot';
+    if(i<quizIdx) cls+=quizData[i]._answered?' '+(quizData[i]._correct?'correct':'wrong'):'';
+    else if(i===quizIdx) cls+=' current';
+    return`<div class="${cls}"></div>`;
+  }).join('');
+  // Options
+  document.getElementById('qz-opts').innerHTML=q.opts.map((o,i)=>
+    `<button class="quiz-opt" onclick="answerQuiz(${i})">${o}</button>`
+  ).join('')+
+  (q.hint?`<div style="text-align:center;margin-top:8px"><button class="btn-xs btn-o" onclick="this.parentElement.innerHTML='💡 '+decodeURIComponent('${encodeURIComponent(q.hint)}')">💡 تلميح</button></div>`:'');
+}
+
+function answerQuiz(idx){
+  const q=quizData[quizIdx];
+  const correct=idx===q.correct;
+  q._answered=true;q._correct=correct;
+  if(correct)quizCorrect++;
+  const btns=document.querySelectorAll('.quiz-opt');
+  btns.forEach((b,i)=>{
+    b.disabled=true;
+    if(i===q.correct)b.classList.add('correct');
+    else if(i===idx&&!correct)b.classList.add('wrong');
+  });
+  setTimeout(()=>{
+    quizIdx++;
+    if(quizIdx<quizData.length){
+      renderQuizQuestion();
+    }else{
+      showQuizResult();
+    }
+  },1000);
+}
+
+function showQuizResult(){
+  const pct=Math.round(quizCorrect/quizData.length*100);
+  const passed=quizCorrect>=3;
+  document.getElementById('qz-content').style.display='none';
+  document.getElementById('qz-result').style.display='block';
+  document.getElementById('qz-result').innerHTML=`
+    <div class="ai-eval ${passed?'good':'weak'}">
+      <div class="ai-eval-head">
+        <div class="ai-eval-icon">${passed?'🎉':'📖'}</div>
+        <div class="ai-eval-title ${passed?'good':'weak'}">${passed?'أحسنت!':'حاول مرة أخرى غداً'}</div>
+      </div>
+      <div class="ai-eval-body">${passed?`أجبت ${quizCorrect} من 5 إجابات صحيحة. هذا يؤكد قراءتك الفعلية!`:`أجبت ${quizCorrect} من 5 فقط. راجع ما قرأته وحاول مجدداً في الجلسة القادمة.`}</div>
+      <div class="ai-eval-score ${passed?'good':'weak'}">${quizCorrect}/5 ✓</div>
+    </div>
+    <button class="btn ${passed?'btn-g':'btn-a'} mt-16" onclick="finishQuiz(${passed},${quizCorrect})">
+      ${passed?'✓ احصل على نقاطك':'حسناً'}
+    </button>`;
+}
+
+function finishQuiz(passed,score){
+  document.getElementById('quiz-modal').classList.remove('open');
+  const book=document.getElementById('t-book').value.trim();
+  const chapter=document.getElementById('t-chapter').value.trim();
+  const pgFrom=parseInt(document.getElementById('t-pg-from').value)||0;
+  const pgTo=parseInt(document.getElementById('t-pg-to').value)||0;
+
+  // Track book progress
+  if(!S.books)S.books={};
+  if(!S.books[book])S.books[book]={sessions:0,pages:[],chapters:[],totalPages:0,firstDate:new Date().toISOString()};
+  S.books[book].sessions++;
+  S.books[book].lastDate=new Date().toISOString();
+  if(chapter&&!S.books[book].chapters.includes(chapter))S.books[book].chapters.push(chapter);
+  if(pgFrom&&pgTo){S.books[book].pages.push({from:pgFrom,to:pgTo});S.books[book].totalPages+=Math.max(0,pgTo-pgFrom+1)}
+  else if(pgFrom){S.books[book].pages.push({from:pgFrom,to:pgFrom});S.books[book].totalPages++}
+
+  if(passed){awardSession(score*2)}
+  else{
+    const partialPts=Math.max(3,Math.round(chosenMin/15*3));
+    S.sessions++;S.pts+=partialPts;
+    const today=new Date();S.lastDate=today.toDateString();S.todayDone=true;
+    S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:partialPts,dur:chosenMin,quizScore:score});
+    save();
+    timeLeft=DURATION;updateTimer();
+    document.getElementById('t-btn').innerHTML='✅ أنجزت جلسة اليوم';document.getElementById('t-btn').disabled=true;document.getElementById('t-btn').className='btn btn-g';
+    document.getElementById('t-lbl').textContent='عُد غداً';document.getElementById('t-done').style.display='block';
+    document.getElementById('t-book').disabled=true;document.getElementById('t-chapter').disabled=true;
+    document.getElementById('t-pg-from').disabled=true;document.getElementById('t-pg-to').disabled=true;
+    refreshAll();showToast('✏️ +'+partialPts+' نقطة — أجب أفضل غداً');
+  }
+  populateBookHistory();
+}
+function populateBookHistory(){
+  const dl=document.getElementById('book-history');
+  if(!dl||!S.books)return;
+  dl.innerHTML=Object.keys(S.books).map(b=>`<option value="${b}">`).join('');
+}
+
+function awardSession(aiScore){
+  const book=document.getElementById('t-book').value.trim();
+  const chapter=document.getElementById('t-chapter').value.trim();
+  const pgFrom=parseInt(document.getElementById('t-pg-from').value)||0;
+  const pgTo=parseInt(document.getElementById('t-pg-to').value)||0;
+  const today=new Date();
+  let earnedPts = Math.max(PTS_PER_SESSION, Math.round(chosenMin / 15 * PTS_PER_SESSION));
+  // AI quality bonus
+  if(aiScore && aiScore >= 8) earnedPts += 5;
+  S.sessions++;S.pts+=earnedPts;
+  if(S.lastDate){
+    const last=new Date(S.lastDate),yday=new Date(today);yday.setDate(yday.getDate()-1);
+    if(last.toDateString()===yday.toDateString())S.streak++;
+    else if(last.toDateString()!==today.toDateString())S.streak=1;
+  }else S.streak=1;
+  if(S.streak>=7)S.pts+=5;
+  S.lastDate=today.toDateString();S.todayDone=true;
+  S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:earnedPts,dur:chosenMin,quizScore:aiScore||0});
+  save();confetti();
+  timeLeft=DURATION;updateTimer();
+  document.getElementById('t-btn').innerHTML='✅ أنجزت جلسة اليوم';document.getElementById('t-btn').disabled=true;document.getElementById('t-btn').className='btn btn-g';
+  document.getElementById('t-lbl').textContent='أحسنت!';
+  document.getElementById('t-done').style.display='block';
+  document.getElementById('t-book').disabled=true;
+  document.getElementById('t-chapter').disabled=true;
+  document.getElementById('t-pg-from').disabled=true;
+  document.getElementById('t-pg-to').disabled=true;
+  refreshAll();showToast('🎉 +'+earnedPts+' نقطة — أحسنت!');
+  populateBookHistory();
+}
+
+// ======== RENDER ========
+function refreshAll(){
+  if(mode==='admin')return;
+  document.getElementById('h-sessions').textContent=S.sessions;
+  document.getElementById('h-streak').textContent=S.streak;
+  document.getElementById('h-hours').textContent=calcHours();
+  document.getElementById('topbar-points').textContent='🪙 '+S.pts;
+  // Progress
+  const pct=Math.min((S.sessions%GOAL)/GOAL*100,100);
+  document.getElementById('rp-circle').style.strokeDashoffset=150.8*(1-pct/100);
+  document.getElementById('rp-pct').textContent=Math.round(pct)+'%';
+  document.getElementById('rp-text').textContent=`${S.sessions%GOAL} من ${GOAL} جلسة`;
+  // Week
+  renderWeek();renderChart();renderBoard();renderRewards();renderLog();renderProfile();
+  // Timer state
+  if(S.todayDone){
+    document.getElementById('t-btn').innerHTML='✅ أنجزت جلسة اليوم';
+    document.getElementById('t-btn').disabled=true;
+    document.getElementById('t-lbl').textContent='عُد غداً';
+    document.getElementById('t-done').style.display='block';
+    document.getElementById('t-book').disabled=true;
+    document.getElementById('t-chapter').disabled=true;
+    document.getElementById('t-pg-from').disabled=true;
+    document.getElementById('t-pg-to').disabled=true;
+  }
+  populateBookHistory();
+}
+
+function renderWeek(){
+  const d=['أحد','إثن','ثلا','أرب','خمي','جمع','سبت'];
+  const today=new Date().getDay();
+  document.getElementById('week-grid').innerHTML=d.map((l,i)=>{
+    let cls='future';
+    if(i<today)cls=i>=today-S.streak?'done':'future';
+    else if(i===today)cls=S.todayDone?'done':'today';
+    return`<div class="wk-day"><div class="wk-lbl">${l}</div><div class="wk-dot ${cls}">${cls==='done'?'✓':''}</div></div>`;
+  }).join('');
+}
+
+function renderChart(){
+  const d=['سبت','أحد','إثن','ثلا','أرب','خمي','جمع'];
+  const vals=[2,3,1,4,3,2,S.todayDone?1:0];
+  const mx=Math.max(...vals,1);
+  document.getElementById('week-chart').innerHTML=d.map((l,i)=>`<div class="chart-col"><div class="chart-val">${vals[i]}</div><div class="chart-bar" style="height:${vals[i]/mx*100}%"></div><div class="chart-lbl">${l}</div></div>`).join('');
+}
+
+function renderBoard(full){
+  const all=[...FAKE_USERS,{name:S.name||'أنت',sessions:S.sessions,pts:S.pts,streak:S.streak,av:'⭐',bg:'var(--accent-l)',me:true}].sort((a,b)=>b.pts-a.pts);
+  const list=full?all:all.slice(0,5);
+  const rankCls=['rank-1','rank-2','rank-3'];
+  const html=list.map((u,i)=>`<div class="list-item" ${u.me?'style="background:var(--ok-l);margin:0 -20px;padding:14px 20px;border-radius:var(--r-sm)"':''}><div class="rank-num ${rankCls[i]||''}">${i+1}</div><div class="li-icon" style="background:${u.bg}">${u.av}</div><div class="li-body"><div class="li-title">${u.name}${u.me?' (أنت)':''}</div><div class="li-sub">${u.sessions} جلسة · سلسلة ${u.streak} يوم</div></div><div class="li-end" style="color:var(--g1)">${u.pts}</div></div>`).join('');
+  if(full)document.getElementById('board-full').innerHTML=`<div class="card-title mb-10">ترتيب جميع المشاركين</div>`+html;
+  else document.getElementById('home-board').innerHTML=html;
+}
+
+function renderRewards(){
+  const rws=S.rewards||DEFAULT_REWARDS;
+  document.getElementById('rw-bal').textContent=S.pts;
+  document.getElementById('rw-list').innerHTML=rws.map(r=>`<div class="rw-card"><div class="rw-icon" style="background:${r.bg}">${r.icon}</div><div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc}</div><div class="rw-cost">${r.cost} نقطة</div></div><button class="btn-xs ${S.pts>=r.cost?'btn-g':'btn-o'}" ${S.pts<r.cost?'disabled':''} onclick="redeem(${r.id})">استبدال</button></div>`).join('');
+}
+
+function redeem(id){
+  const r=(S.rewards||DEFAULT_REWARDS).find(x=>x.id===id);
+  if(!r||S.pts<r.cost)return;
+  S.pts-=r.cost;S.redeemed.push({name:r.name,date:new Date().toISOString()});
+  save();refreshAll();confetti();showToast('🎉 تم استبدال: '+r.name);
+}
+
+function renderLog(){
+  const c=document.getElementById('log-list');
+  if(!S.log.length){c.innerHTML='<div class="empty"><div class="empty-icon">📖</div><div class="empty-txt">ابدأ أول جلسة قراءة</div></div>';return}
+  c.innerHTML=S.log.slice(0,50).map(s=>{
+    const d=new Date(s.date);
+    const aiBadge=s.quizScore?`<span style="background:${s.quizScore>=3?'var(--ok)':'var(--warn)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">🤖 ${s.quizScore}/5</span>`:(s.aiScore?`<span style="background:${s.aiScore>=7?'var(--ok)':'var(--warn)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">🤖 ${s.aiScore}/10</span>`:'');
+    const chapInfo=s.chapter?` · ${s.chapter}`:'';
+    const pgInfo=s.pgFrom&&s.pgTo?` · ص${s.pgFrom}–${s.pgTo}`:'';
+    return`<div class="list-item"><div class="li-icon" style="background:var(--ok-l)">📚</div><div class="li-body"><div class="li-title">${s.book}</div><div class="li-sub">${d.toLocaleDateString('ar-AE',{day:'numeric',month:'short'})} · ${s.dur||15} د${chapInfo}${pgInfo} ${aiBadge}</div></div><div class="li-end" style="color:var(--accent-d)">+${s.pts}</div></div>`;
+  }).join('');
+}
+
+function renderProfile(){
+  document.getElementById('pf-name').textContent=S.name||'—';
+  document.getElementById('pf-role').textContent=S.org?({'pc':'ديوان الرئاسة','moe':'وزارة التربية','adnoc':'أدنوك','other':'جهة أخرى'}[S.org]):'—';
+  document.getElementById('pf-s').textContent=S.sessions;
+  document.getElementById('pf-h').textContent=calcHours();
+  const books=[...new Set(S.log.map(l=>l.book))];
+  document.getElementById('pf-b').textContent=books.length;
+  document.getElementById('pf-avatar').textContent=S.name?S.name[0]:'👤';
+  document.getElementById('topbar-avatar').textContent=S.name?S.name[0]:'👤';
+}
+
+// ======== ADMIN ========
+function renderAdminHome(){
+  const d=['سبت','أحد','إثن','ثلا','أرب','خمي','جمع'];
+  const vals=[18,24,15,32,28,20,12];
+  const mx=Math.max(...vals);
+  document.getElementById('adm-chart').innerHTML=d.map((l,i)=>`<div class="chart-col"><div class="chart-val">${vals[i]}</div><div class="chart-bar" style="height:${vals[i]/mx*100}%"></div><div class="chart-lbl">${l}</div></div>`).join('');
+  document.getElementById('adm-top').innerHTML=FAKE_USERS.slice(0,5).map((u,i)=>`<div class="emp-row"><div class="rank-num ${['rank-1','rank-2','rank-3'][i]||''}">${i+1}</div><div class="emp-avatar" style="background:${u.bg}">${u.av}</div><div class="emp-info"><div class="emp-name">${u.name}</div><div class="emp-meta">${u.sessions} جلسة · ${u.pts} نقطة</div></div><div class="emp-badge active">نشط</div></div>`).join('');
+  document.getElementById('apf-name').textContent=S.name;
+}
+
+const ALL_EMPS=[...FAKE_USERS,
+  {name:'حمدان النعيمي',sessions:12,pts:120,av:'👨‍🏭',bg:'#FFF0E8',active:true},
+  {name:'شيخة الكعبي',sessions:8,pts:80,av:'👩‍🔧',bg:'#E8F5F0',active:true},
+  {name:'سالم الرميثي',sessions:3,pts:30,av:'👨‍🌾',bg:'#F0E8F5',active:false},
+  {name:'هند المزروعي',sessions:0,pts:0,av:'👩‍🍳',bg:'#FFF8E7',active:false},
+];
+
+function renderAdminEmps(filter=''){
+  const list=filter?ALL_EMPS.filter(e=>e.name.includes(filter)):ALL_EMPS;
+  document.getElementById('adm-emp-list').innerHTML=list.map(e=>`<div class="emp-row"><div class="emp-avatar" style="background:${e.bg}">${e.av}</div><div class="emp-info"><div class="emp-name">${e.name}</div><div class="emp-meta">${e.sessions} جلسة · سلسلة ${e.streak||0} يوم</div></div><div class="emp-badge ${(e.active!==false&&e.sessions>0)?'active':'inactive'}">${(e.active!==false&&e.sessions>0)?'نشط':'غير نشط'}</div></div>`).join('');
+}
+function filterEmps(){renderAdminEmps(document.getElementById('adm-search').value.trim())}
+
+function renderAdminRewards(){
+  const rws=S.adminRewards||DEFAULT_REWARDS;
+  document.getElementById('adm-rw-list').innerHTML=rws.map(r=>`<div class="rw-card"><div class="rw-icon" style="background:${r.bg}">${r.icon}</div><div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc}</div><div class="rw-cost">${r.cost} نقطة · متاح: ${r.qty}</div></div><button class="btn-xs btn-o" onclick="removeReward(${r.id})" style="color:var(--err);border-color:var(--err)">حذف</button></div>`).join('');
+  document.getElementById('adm-redeem').innerHTML=`<div class="empty"><div class="empty-icon">📬</div><div class="empty-txt">لا توجد طلبات استبدال حالياً</div></div>`;
+}
+
+function toggleAddRw(){const f=document.getElementById('add-rw-form');f.style.display=f.style.display==='none'?'block':'none'}
+
+function addReward(){
+  const n=document.getElementById('new-rw-name').value.trim();
+  const d=document.getElementById('new-rw-desc').value.trim();
+  const p=parseInt(document.getElementById('new-rw-pts').value)||0;
+  const q=parseInt(document.getElementById('new-rw-qty').value)||0;
+  if(!n||!p){showToast('أدخل الاسم والنقاط');return}
+  const icons=['🎁','📦','🎫','🏆','💎'];
+  const bgs=['#E8F5F0','#FFF8E7','#F0E8F5','#FFF0E8','#E8F0F5'];
+  const id=Date.now();
+  S.adminRewards.push({id,name:n,desc:d,cost:p,qty:q,icon:icons[Math.floor(Math.random()*icons.length)],bg:bgs[Math.floor(Math.random()*bgs.length)]});
+  save();toggleAddRw();renderAdminRewards();showToast('تمت إضافة المكافأة');
+  document.getElementById('new-rw-name').value='';document.getElementById('new-rw-desc').value='';
+  document.getElementById('new-rw-pts').value='';document.getElementById('new-rw-qty').value='';
+}
+
+function removeReward(id){
+  S.adminRewards=S.adminRewards.filter(r=>r.id!==id);save();renderAdminRewards();showToast('تم حذف المكافأة');
+}
+
+// ======== MY BOOKS ========
+function renderBooks(){
+  const c=document.getElementById('books-list');
+  if(!S.books||!Object.keys(S.books).length){
+    c.innerHTML=`<div class="card"><div class="empty"><div class="empty-icon">📚</div><div class="empty-txt">أكمل أول جلسة قراءة وسيظهر كتابك هنا</div></div></div>`;
+    return;
+  }
+  const books=Object.entries(S.books).sort((a,b)=>new Date(b[1].lastDate||0)-new Date(a[1].lastDate||0));
+  c.innerHTML=books.map(([name,b])=>{
+    const sessionsInBook=b.sessions;
+    const pagesRead=b.totalPages;
+    const lastD=b.lastDate?new Date(b.lastDate).toLocaleDateString('ar-AE',{day:'numeric',month:'short'}):'—';
+    const chapTags=b.chapters.map(ch=>`<span class="book-chap-tag">${ch}</span>`).join('');
+    // Page ranges
+    const pageRanges=b.pages.slice(-5).map(p=>`ص${p.from}${p.to!==p.from?'–'+p.to:''}`).join(' · ');
+    return`<div class="book-prog-card">
+      <div class="book-prog-head">
+        <div class="book-prog-icon" style="background:var(--ok-l)">📖</div>
+        <div class="book-prog-info">
+          <div class="book-prog-title">${name}</div>
+          <div class="book-prog-meta">${sessionsInBook} جلسة · ${pagesRead} صفحة · آخر قراءة: ${lastD}</div>
+        </div>
+      </div>
+      ${b.chapters.length?`<div class="book-prog-chapters">${chapTags}</div>`:''}
+      ${pageRanges?`<div style="font-size:10px;color:var(--tx3);margin-top:6px">📄 ${pageRanges}</div>`:''}
+      <div style="margin-top:10px"><button class="btn-xs btn-o" onclick="showPage('log')">عرض الجلسات</button></div>
+    </div>`;
+  }).join('');
+}
+
+// Update hours calculation
+function calcHours(){
+  let totalMin=0;
+  (S.log||[]).forEach(s=>totalMin+=(s.dur||15));
+  return(totalMin/60).toFixed(1);
+}
+
+// ======== READING PARTNER ========
+function renderPartner(){
+  const c=document.getElementById('partner-content');
+  if(!S.hasPartner){
+    c.innerHTML=`
+      <div class="card">
+        <div class="no-partner">
+          <div class="no-partner-icon">👥</div>
+          <div class="no-partner-title">شريك القراءة</div>
+          <div class="no-partner-sub">اربط نفسك بزميل لتقييم ملخصات بعضكما أسبوعياً. هذا يحوّل القراءة من نشاط فردي إلى تجربة اجتماعية ويزيد التزامكما معاً.</div>
+          <button class="btn btn-g" onclick="findPartner()">ابحث عن شريك قراءة</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title mb-10">كيف يعمل؟</div>
+        <div class="list-item"><div class="li-icon" style="background:var(--ok-l)">1️⃣</div><div class="li-body"><div class="li-title">اقرأ واكتب ملخصك</div><div class="li-sub">بعد كل جلسة، ملخصك يصل لشريكك</div></div></div>
+        <div class="list-item"><div class="li-icon" style="background:var(--accent-l)">2️⃣</div><div class="li-body"><div class="li-title">قيّم ملخص شريكك</div><div class="li-sub">اقرأ ملخصه وأعطه تقييماً أسبوعياً</div></div></div>
+        <div class="list-item"><div class="li-icon" style="background:var(--warn-l)">3️⃣</div><div class="li-body"><div class="li-title">اكسبا نقاطاً إضافية</div><div class="li-sub">+5 نقاط لكل تقييم تقدّمه</div></div></div>
+      </div>`;
+    return;
+  }
+  // Has partner - show partner's summaries
+  const mySummaries=(S.summaries||[]).slice(0,5);
+  c.innerHTML=`
+    <div class="partner-card highlight">
+      <div class="partner-header">
+        <div class="partner-av" style="background:var(--ok-l)">👥</div>
+        <div class="partner-info">
+          <div class="partner-name">شريكك: ${S.partnerName}</div>
+          <div class="partner-meta">متصل منذ ${Math.floor(Math.random()*14)+1} يوم · ${PARTNER_SUMMARIES.length} ملخصات هذا الأسبوع</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-title">ملخصات شريكك الأخيرة</div></div>
+      ${PARTNER_SUMMARIES.map((ps,i)=>{
+        const d=new Date(ps.date);
+        const rated=S.partnerRatings&&S.partnerRatings.includes(i);
+        return`<div class="partner-summary-card">
+          <div class="partner-summary-book">📖 ${ps.book}</div>
+          <div class="partner-summary-txt">${ps.text}</div>
+          <div class="partner-summary-date">${d.toLocaleDateString('ar-AE',{weekday:'long',day:'numeric',month:'short'})}</div>
+          ${rated?
+            '<div style="margin-top:8px;font-family:var(--ff);font-size:11px;color:var(--ok);font-weight:600">✅ تم التقييم</div>':
+            `<div class="rate-btns">
+              <button class="rate-btn" onclick="ratePartner(${i},'👍','ممتاز')">👍 ممتاز</button>
+              <button class="rate-btn" onclick="ratePartner(${i},'👌','جيد')">👌 جيد</button>
+              <button class="rate-btn" onclick="ratePartner(${i},'💡','يحتاج تفصيل')">💡 يحتاج تفصيل</button>
+            </div>`}
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="card">
+      <div class="card-head"><div class="card-title">ملخصاتك الأخيرة</div></div>
+      ${mySummaries.length?mySummaries.map(ms=>{
+        const d=new Date(ms.date);
+        return`<div class="partner-summary-card">
+          <div class="partner-summary-book">📖 ${ms.book}</div>
+          <div class="partner-summary-txt">${ms.text}</div>
+          <div class="partner-summary-date">${d.toLocaleDateString('ar-AE',{weekday:'long',day:'numeric',month:'short'})} · 🤖 ${ms.score}/10</div>
+        </div>`;
+      }).join(''):`<div class="empty"><div class="empty-icon">✏️</div><div class="empty-txt">أكمل جلسة قراءة لتظهر ملخصاتك هنا</div></div>`}
+    </div>
+
+    <button class="btn btn-o" style="margin-top:8px" onclick="removePartner()">إلغاء الشراكة</button>`;
+}
+
+function findPartner(){
+  // Simulate partner matching
+  const partners=['فاطمة الحربي','نورة الشامسي','سعيد المهيري','خالد العمري','مريم السويدي'];
+  const chosen=partners[Math.floor(Math.random()*partners.length)];
+  S.hasPartner=true;
+  S.partnerName=chosen;
+  S.partnerRatings=[];
+  save();
+  confetti();
+  showToast('🎉 تم ربطك مع '+chosen);
+  renderPartner();
+}
+
+function ratePartner(idx,emoji,label){
+  if(!S.partnerRatings)S.partnerRatings=[];
+  S.partnerRatings.push(idx);
+  S.pts+=5;
+  save();
+  refreshAll();
+  renderPartner();
+  showToast(emoji+' شكراً! +5 نقاط للتقييم');
+}
+
+function removePartner(){
+  S.hasPartner=false;S.partnerName='';S.partnerRatings=[];
+  save();renderPartner();
+  showToast('تم إلغاء الشراكة');
+}
+
+// ======== UTILS ========
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
+
+function confetti(){
+  const colors=['#145C4B','#D4A843','#2E9B6F','#E4BD5A','#0D3F34'];
+  for(let i=0;i<25;i++){
+    const c=document.createElement('div');c.className='confetti';
+    c.style.cssText=`left:${Math.random()*100}vw;background:${colors[Math.floor(Math.random()*colors.length)]};border-radius:${Math.random()>.5?'50%':'2px'};width:${6+Math.random()*8}px;height:${6+Math.random()*8}px;animation:cfall ${1.5+Math.random()*2}s linear forwards;animation-delay:${Math.random()*.5}s`;
+    document.body.appendChild(c);setTimeout(()=>c.remove(),4000);
+  }
+}
+</script>
+<script>
+if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js"));}
+</script>
+</body>
+</html>
