@@ -2,40 +2,68 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function signedIn() { return request.auth != null; }
-    function isAdmin() {
-      return signedIn() &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    // ---------- helpers ----------
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function myOrg() { return me().orgId; }
+    function isSuper() { return signedIn() && me().role == 'super'; }
+    function isAdmin() { return signedIn() && me().role == 'admin'; }
+    function sameOrg(orgId) { return signedIn() && myOrg() == orgId; }
+    function emailDomain() { return request.auth.token.email.lower().split('@')[1]; }
+
+    // ---------- organizations ----------
+    // Any authenticated user (even unverified, during signup) may look up orgs by domain.
+    // Only the platform super-admin may create or change them.
+    match /orgs/{orgId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if isSuper();
     }
 
-    // Users: anyone signed in can read (leaderboard, partner).
-    // You can create/update only your own document, and you can never change your own role.
+    // ---------- users ----------
     match /users/{userId} {
-      allow read: if signedIn();
-      allow create: if signedIn() && request.auth.uid == userId
-                    && request.resource.data.role == 'user';
+      // Read: yourself, colleagues in your org, or super-admin
+      allow read: if signedIn() && (request.auth.uid == userId || sameOrg(resource.data.orgId) || isSuper());
+
+      // Create: only your own doc, role must be 'user', and the org must actually own your email domain
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.data.role == 'user'
+        && request.resource.data.email == request.auth.token.email.lower()
+        && get(/databases/$(database)/documents/orgs/$(request.resource.data.orgId)).data.domains.hasAny([emailDomain()]);
+
+      // Update:
+      //  - yourself: anything except role and orgId
+      //  - a colleague: only the partner fields (for partner matching)
+      //  - org admin of the same org, or super
       allow update: if signedIn() && (
-          (request.auth.uid == userId && request.resource.data.role == resource.data.role)
-          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['partnerId','partnerName']))
-          || isAdmin()
+           (request.auth.uid == userId
+              && request.resource.data.role == resource.data.role
+              && request.resource.data.orgId == resource.data.orgId)
+        || (sameOrg(resource.data.orgId)
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['partnerId','partnerName']))
+        || (isAdmin() && sameOrg(resource.data.orgId) && request.resource.data.role != 'super')
+        || isSuper()
       );
-      allow delete: if isAdmin();
+      allow delete: if isSuper();
     }
 
-    // Rewards: everyone reads; only admins create/delete; users may only decrement qty by 1.
+    // ---------- rewards (per org) ----------
     match /rewards/{rewardId} {
-      allow read: if signedIn();
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin() ||
-        (signedIn() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['qty'])
-         && request.resource.data.qty == resource.data.qty - 1);
+      allow read: if sameOrg(resource.data.orgId) || isSuper();
+      allow create: if (isAdmin() && sameOrg(request.resource.data.orgId)) || isSuper();
+      allow delete: if (isAdmin() && sameOrg(resource.data.orgId)) || isSuper();
+      allow update: if (isAdmin() && sameOrg(resource.data.orgId)) || isSuper()
+        || (sameOrg(resource.data.orgId)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['qty'])
+            && request.resource.data.qty == resource.data.qty - 1);
     }
 
-    // Redemptions: users create their own; only admins read all / update status.
+    // ---------- redemptions (per org) ----------
     match /redemptions/{id} {
-      allow create: if signedIn() && request.resource.data.uid == request.auth.uid;
-      allow read, update: if isAdmin();
-      allow delete: if isAdmin();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.orgId == myOrg();
+      allow read, update, delete: if (isAdmin() && sameOrg(resource.data.orgId)) || isSuper();
     }
   }
 }

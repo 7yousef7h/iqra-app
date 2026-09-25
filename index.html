@@ -374,19 +374,28 @@ input,button,textarea,select{font-family:inherit}
       <div class="field"><label>اسمك</label><input id="up-name" placeholder="مثال: أحمد المنصوري" autocomplete="name"></div>
       <div class="field"><label>البريد الإلكتروني</label><input id="up-email" type="email" placeholder="ahmed@company.ae" dir="ltr" autocomplete="email"></div>
       <div class="field"><label>كلمة المرور (6 أحرف على الأقل)</label><input id="up-pass" type="password" placeholder="••••••••" dir="ltr" autocomplete="new-password"></div>
-      <div class="field"><label>المؤسسة</label>
-        <select id="up-org">
-          <option value="">اختر مؤسستك</option>
-          <option value="pc">ديوان الرئاسة</option>
-          <option value="moe">وزارة التربية</option>
-          <option value="adnoc">أدنوك</option>
-          <option value="other">جهة أخرى</option>
-        </select>
-      </div>
+      <div style="font-size:12px;color:var(--tx3);margin:-6px 0 16px;line-height:1.7">استخدم بريدك المؤسسي — سيتم ربطك بمؤسستك تلقائياً.</div>
       <button class="btn btn-g" id="btn-up" onclick="doSignup()">إنشاء الحساب</button>
     </div>
   </div>
   <div class="login-footer">بالدخول أنت توافق على شروط الاستخدام وسياسة الخصوصية</div>
+</div>
+
+<!-- ===== VERIFY EMAIL ===== -->
+<div class="screen hidden" id="verify">
+  <div class="login-header">
+    <div class="login-logo">📧</div>
+    <div class="login-tagline">تأكيد البريد الإلكتروني</div>
+  </div>
+  <div class="login-body">
+    <div class="card txt-c">
+      <div style="font-family:var(--ff);font-size:15px;font-weight:700;margin-bottom:8px">خطوة أخيرة</div>
+      <div style="font-size:13px;color:var(--tx2);line-height:1.8">أرسلنا رابط تأكيد إلى<br><b dir="ltr" id="vf-email">—</b><br>افتح بريدك واضغط على الرابط، ثم عُد هنا.</div>
+    </div>
+    <button class="btn btn-g" onclick="checkVerified()">✓ تم التأكيد — تابع</button>
+    <button class="btn btn-o mt-8" onclick="resendVerify()">إعادة إرسال الرابط</button>
+    <div style="text-align:center;margin-top:16px"><button class="card-link" onclick="logout()">تسجيل الخروج</button></div>
+  </div>
 </div>
 
 <!-- ===== MAIN ===== -->
@@ -634,6 +643,36 @@ input,button,textarea,select{font-family:inherit}
     </div>
   </div>
 
+    <!-- ===== SUPER ADMIN PAGES ===== -->
+    <div class="page" id="pg-sup-orgs">
+      <div class="card">
+        <div class="card-head"><div class="card-title">المؤسسات المشتركة</div><button class="btn-xs btn-g" onclick="toggleAddOrg()">+ إضافة</button></div>
+        <div class="add-rw-form" id="add-org-form" style="display:none">
+          <div class="field"><label>اسم المؤسسة</label><input id="new-org-name" placeholder="مثال: أدنوك"></div>
+          <div class="field"><label>نطاقات البريد (افصل بينها بفاصلة)</label><input id="new-org-domains" placeholder="adnoc.ae, adnoc.com" dir="ltr"></div>
+          <div class="flex-row gap-8">
+            <button class="btn btn-g btn-sm" onclick="addOrg()">حفظ</button>
+            <button class="btn btn-o btn-sm" onclick="toggleAddOrg()">إلغاء</button>
+          </div>
+        </div>
+        <div id="sup-org-list"></div>
+      </div>
+    </div>
+    <div class="page" id="pg-sup-profile">
+      <div class="card">
+        <div class="profile-header">
+          <div class="profile-avatar">🛠️</div>
+          <div class="profile-name" id="spf-name">—</div>
+          <div class="profile-role">مدير المنصة</div>
+        </div>
+      </div>
+      <div class="setting-row" onclick="logout()">
+        <div class="setting-icon" style="background:var(--err-l)">🚪</div>
+        <div class="setting-label" style="color:var(--err)">تسجيل الخروج</div>
+        <div class="setting-arrow">‹</div>
+      </div>
+    </div>
+
   <!-- Tab bar -->
   <div class="tab-bar" id="tab-bar"></div>
 </div>
@@ -726,9 +765,8 @@ const DEFAULT_REWARDS = [
 const AVATARS=['👩‍💼','👨‍💻','👩‍🏫','👨‍🔬','👩‍⚕️','👨‍🎓','👩‍🎨','👨‍✈️'];
 const AV_BGS=['#E8F5F0','#FFF8E7','#F0E8F5','#FFF0E8','#E8F0F5'];
 function avOf(u){const n=(u.name||'?').charCodeAt(0);return{av:AVATARS[n%AVATARS.length],bg:AV_BGS[n%AV_BGS.length]}}
-const ORG_NAMES={'pc':'ديوان الرئاسة','moe':'وزارة التربية','adnoc':'أدنوك','other':'جهة أخرى'};
 
-function defaultState(){return{name:'',email:'',org:'',role:'user',sessions:0,pts:0,streak:0,lastDate:null,todayDone:false,log:[],redeemed:[],summaries:[],partnerId:null,partnerName:'',partnerRatings:[],books:{},createdAt:new Date().toISOString()}}
+function defaultState(){return{name:'',email:'',orgId:'',orgName:'',role:'user',sessions:0,pts:0,streak:0,lastDate:null,todayDone:false,log:[],redeemed:[],summaries:[],partnerId:null,partnerName:'',partnerRatings:[],books:{},createdAt:new Date().toISOString()}}
 
 // Load this user's document from Firestore
 async function load(){
@@ -743,30 +781,48 @@ function save(){
   db.collection('users').doc(uid).set(data,{merge:true}).catch(e=>{console.error(e);showToast('⚠️ تعذّر الحفظ — تحقق من الاتصال')});
 }
 async function loadRewards(){
-  const q=await db.collection('rewards').orderBy('cost','desc').get();
-  REWARDS=q.docs.map(d=>({id:d.id,...d.data()}));
+  const q=await db.collection('rewards').where('orgId','==',S.orgId).get();
+  REWARDS=q.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.cost-a.cost);
 }
 async function loadUsers(){
-  const q=await db.collection('users').orderBy('pts','desc').limit(100).get();
-  USERS_CACHE=q.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role!=='admin');
+  const ref=db.collection('users');
+  const q=await (S.role==='super'?ref.limit(1000):ref.where('orgId','==',S.orgId).limit(500)).get();
+  USERS_CACHE=q.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role==='user').sort((a,b)=>(b.pts||0)-(a.pts||0));
+}
+function emailDomain(e){return (e.split('@')[1]||'').toLowerCase().trim()}
+async function findOrgByDomain(domain){
+  const q=await db.collection('orgs').where('domains','array-contains',domain).limit(1).get();
+  return q.empty?null:{id:q.docs[0].id,...q.docs[0].data()};
 }
 
 // ======== SPLASH & AUTH ========
 auth.onAuthStateChanged(async user=>{
   if(user){
     uid=user.uid;
+    if(!user.emailVerified){
+      document.getElementById('vf-email').textContent=user.email;
+      hide('splash');hide('login');hide('main');show('verify');return;
+    }
     try{
       await load();
       if(!S.name){S.name=user.displayName||'';S.email=user.email;save()}
-      await loadRewards();
-      mode=S.role==='admin'?'admin':'emp';
-      hide('splash');hide('login');show('main');initMain();
+      if(S.role!=='super')await loadRewards();
+      mode=S.role==='super'?'super':S.role==='admin'?'admin':'emp';
+      hide('splash');hide('login');hide('verify');show('main');initMain();
     }catch(e){console.error(e);showToast('⚠️ خطأ في تحميل البيانات');hide('splash');show('login')}
   }else{
     uid=null;S=defaultState();
-    setTimeout(()=>{hide('splash');hide('main');show('login')},800);
+    setTimeout(()=>{hide('splash');hide('main');hide('verify');show('login')},800);
   }
 });
+async function checkVerified(){
+  await auth.currentUser.reload();
+  if(auth.currentUser.emailVerified){location.reload()}
+  else showToast('لم يتم التأكيد بعد — افتح الرابط في بريدك أولاً');
+}
+async function resendVerify(){
+  try{await auth.currentUser.sendEmailVerification();showToast('📧 أُعيد إرسال الرابط')}catch(e){authErr(e)}
+}
 
 function switchLoginTab(t){
   document.getElementById('tab-in').classList.toggle('active',t==='in');
@@ -780,17 +836,23 @@ function authErr(e){
 }
 async function doSignup(){
   const n=document.getElementById('up-name').value.trim();
-  const e=document.getElementById('up-email').value.trim();
+  const e=document.getElementById('up-email').value.trim().toLowerCase();
   const p=document.getElementById('up-pass').value;
-  const o=document.getElementById('up-org').value;
-  if(!n||!e||!p||!o){showToast('يرجى تعبئة جميع الحقول');return}
+  if(!n||!e||!p){showToast('يرجى تعبئة جميع الحقول');return}
   const b=document.getElementById('btn-up');b.disabled=true;b.textContent='جارٍ الإنشاء...';
   try{
     const cred=await auth.createUserWithEmailAndPassword(e,p);
+    const org=await findOrgByDomain(emailDomain(e));
+    if(!org||org.active===false){
+      await cred.user.delete();
+      showToast('⚠️ مؤسستك غير مشتركة في المنصة — تواصل مع إدارة المنصة');
+      b.disabled=false;b.textContent='إنشاء الحساب';return;
+    }
     await cred.user.updateProfile({displayName:n});
-    const st={...defaultState(),name:n,email:e,org:o};
+    const st={...defaultState(),name:n,email:e,orgId:org.id,orgName:org.name};
     const {todayDone,...data}=st;
     await db.collection('users').doc(cred.user.uid).set(data);
+    await cred.user.sendEmailVerification();
   }catch(err){authErr(err)}
   b.disabled=false;b.textContent='إنشاء الحساب';
 }
@@ -817,6 +879,10 @@ const EMP_TABS=[
   {id:'partner',icon:'👥',label:'شريكي'},
   {id:'rewards',icon:'🎁',label:'المكافآت'},
 ];
+const SUP_TABS=[
+  {id:'sup-orgs',icon:'🏢',label:'المؤسسات'},
+  {id:'sup-profile',icon:'⚙️',label:'الإعدادات'},
+];
 const ADM_TABS=[
   {id:'adm-home',icon:'📊',label:'لوحة التحكم'},
   {id:'adm-emp',icon:'👥',label:'الموظفون'},
@@ -825,15 +891,15 @@ const ADM_TABS=[
 ];
 
 function initMain(){
-  const tabs=mode==='admin'?ADM_TABS:EMP_TABS;
+  const tabs=mode==='super'?SUP_TABS:mode==='admin'?ADM_TABS:EMP_TABS;
   const bar=document.getElementById('tab-bar');
   bar.innerHTML=tabs.map((t,i)=>`<button class="tab-item${i===0?' active':''}" onclick="showPage('${t.id}')" data-pg="${t.id}"><div class="tab-icon">${t.icon}</div><div class="tab-label">${t.label}</div></button>`).join('');
-  document.getElementById('topbar-points').style.display=mode==='admin'?'none':'flex';
+  document.getElementById('topbar-points').style.display=mode==='emp'?'flex':'none';
   showPage(tabs[0].id);
   refreshAll();
 }
 
-const PAGE_TITLES={'home':'الرئيسية','timer':'جلسة القراءة','books':'كتبي','partner':'شريك القراءة','rewards':'المكافآت','log':'سجلّي','board':'الترتيب','profile':'حسابي','adm-home':'لوحة التحكم','adm-emp':'الموظفون','adm-rw':'المكافآت','adm-profile':'الإعدادات'};
+const PAGE_TITLES={'home':'الرئيسية','timer':'جلسة القراءة','books':'كتبي','partner':'شريك القراءة','rewards':'المكافآت','log':'سجلّي','board':'الترتيب','profile':'حسابي','adm-home':'لوحة التحكم','adm-emp':'الموظفون','adm-rw':'المكافآت','adm-profile':'الإعدادات','sup-orgs':'المؤسسات','sup-profile':'إعدادات المنصة'};
 
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -847,6 +913,8 @@ function showPage(id){
   if(id==='adm-home')renderAdminHome();
   if(id==='adm-emp')renderAdminEmps();
   if(id==='adm-rw')renderAdminRewards();
+  if(id==='sup-orgs')renderSuperOrgs();
+  if(id==='sup-profile')document.getElementById('spf-name').textContent=S.name;
 }
 
 function show(id){document.getElementById(id).classList.remove('hidden','slide-right')}
@@ -1073,7 +1141,7 @@ function awardSession(aiScore){
 
 // ======== RENDER ========
 function refreshAll(){
-  if(mode==='admin')return;
+  if(mode!=='emp')return;
   document.getElementById('h-sessions').textContent=S.sessions;
   document.getElementById('h-streak').textContent=S.streak;
   document.getElementById('h-hours').textContent=calcHours();
@@ -1142,7 +1210,7 @@ async function redeem(id){
   S.pts-=r.cost;S.redeemed.push({name:r.name,date:new Date().toISOString()});
   save();
   try{
-    await db.collection('redemptions').add({uid,userName:S.name,rewardId:id,rewardName:r.name,cost:r.cost,date:new Date().toISOString(),status:'pending'});
+    await db.collection('redemptions').add({uid,orgId:S.orgId,userName:S.name,rewardId:id,rewardName:r.name,cost:r.cost,date:new Date().toISOString(),status:'pending'});
     await db.collection('rewards').doc(id).update({qty:firebase.firestore.FieldValue.increment(-1)});
     await loadRewards();
   }catch(e){console.error(e)}
@@ -1163,7 +1231,7 @@ function renderLog(){
 
 function renderProfile(){
   document.getElementById('pf-name').textContent=S.name||'—';
-  document.getElementById('pf-role').textContent=S.org?({'pc':'ديوان الرئاسة','moe':'وزارة التربية','adnoc':'أدنوك','other':'جهة أخرى'}[S.org]):'—';
+  document.getElementById('pf-role').textContent=S.orgName||'—';
   document.getElementById('pf-s').textContent=S.sessions;
   document.getElementById('pf-h').textContent=calcHours();
   const books=[...new Set(S.log.map(l=>l.book))];
@@ -1197,7 +1265,7 @@ async function renderAdminEmps(filter=''){
   document.querySelector('#pg-adm-emp .card-title').textContent=`الموظفون (${USERS_CACHE.length})`;
   const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
   const list=filter?USERS_CACHE.filter(e=>(e.name||'').includes(filter)):USERS_CACHE;
-  document.getElementById('adm-emp-list').innerHTML=list.map(e=>{const a=avOf(e);const active=e.lastDate&&new Date(e.lastDate)>=weekAgo;return`<div class="emp-row"><div class="emp-avatar" style="background:${a.bg}">${a.av}</div><div class="emp-info"><div class="emp-name">${e.name}</div><div class="emp-meta">${ORG_NAMES[e.org]||''} · ${e.sessions||0} جلسة · سلسلة ${e.streak||0} يوم</div></div><div class="emp-badge ${active?'active':'inactive'}">${active?'نشط':'غير نشط'}</div></div>`}).join('')||'<div class="empty"><div class="empty-txt">لا نتائج</div></div>';
+  document.getElementById('adm-emp-list').innerHTML=list.map(e=>{const a=avOf(e);const active=e.lastDate&&new Date(e.lastDate)>=weekAgo;return`<div class="emp-row"><div class="emp-avatar" style="background:${a.bg}">${a.av}</div><div class="emp-info"><div class="emp-name">${e.name}</div><div class="emp-meta">${e.sessions||0} جلسة · سلسلة ${e.streak||0} يوم</div></div><div class="emp-badge ${active?'active':'inactive'}">${active?'نشط':'غير نشط'}</div></div>`}).join('')||'<div class="empty"><div class="empty-txt">لا نتائج</div></div>';
 }
 function filterEmps(){renderAdminEmps(document.getElementById('adm-search').value.trim())}
 
@@ -1208,15 +1276,15 @@ async function renderAdminRewards(){
   else c.innerHTML=REWARDS.map(r=>`<div class="rw-card"><div class="rw-icon" style="background:${r.bg}">${r.icon}</div><div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc||''}</div><div class="rw-cost">${r.cost} نقطة · متاح: ${r.qty}</div></div><button class="btn-xs btn-o" onclick="removeReward('${r.id}')" style="color:var(--err);border-color:var(--err)">حذف</button></div>`).join('');
   // Redemption requests
   try{
-    const q=await db.collection('redemptions').orderBy('date','desc').limit(50).get();
-    const reqs=q.docs.map(d=>({id:d.id,...d.data()}));
+    const q=await db.collection('redemptions').where('orgId','==',S.orgId).limit(200).get();
+    const reqs=q.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,50);
     document.getElementById('adm-redeem').innerHTML=reqs.length?reqs.map(r=>`<div class="list-item"><div class="li-icon" style="background:${r.status==='done'?'var(--ok-l)':'var(--warn-l)'}">${r.status==='done'?'✅':'📬'}</div><div class="li-body"><div class="li-title">${r.userName}</div><div class="li-sub">${r.rewardName} · ${r.cost} نقطة · ${new Date(r.date).toLocaleDateString('ar-AE',{day:'numeric',month:'short'})}</div></div>${r.status==='done'?'<div class="li-end" style="color:var(--ok);font-size:11px">تم التسليم</div>':`<button class="btn-xs btn-g" onclick="markDelivered('${r.id}')">تم التسليم</button>`}</div>`).join(''):`<div class="empty"><div class="empty-icon">📬</div><div class="empty-txt">لا توجد طلبات استبدال حالياً</div></div>`;
   }catch(e){console.error(e)}
 }
 async function markDelivered(id){await db.collection('redemptions').doc(id).update({status:'done'});renderAdminRewards();showToast('✅ تم تحديث الطلب')}
 async function seedRewards(){
   const batch=db.batch();
-  DEFAULT_REWARDS.forEach(r=>batch.set(db.collection('rewards').doc(),r));
+  DEFAULT_REWARDS.forEach(r=>batch.set(db.collection('rewards').doc(),{...r,orgId:S.orgId}));
   await batch.commit();renderAdminRewards();showToast('تمت إضافة المكافآت');
 }
 
@@ -1229,7 +1297,7 @@ async function addReward(){
   const q=parseInt(document.getElementById('new-rw-qty').value)||0;
   if(!n||!p){showToast('أدخل الاسم والنقاط');return}
   const icons=['🎁','📦','🎫','🏆','💎'];
-  await db.collection('rewards').add({name:n,desc:d,cost:p,qty:q,icon:icons[Math.floor(Math.random()*icons.length)],bg:AV_BGS[Math.floor(Math.random()*AV_BGS.length)]});
+  await db.collection('rewards').add({orgId:S.orgId,name:n,desc:d,cost:p,qty:q,icon:icons[Math.floor(Math.random()*icons.length)],bg:AV_BGS[Math.floor(Math.random()*AV_BGS.length)]});
   toggleAddRw();renderAdminRewards();showToast('تمت إضافة المكافأة');
   document.getElementById('new-rw-name').value='';document.getElementById('new-rw-desc').value='';
   document.getElementById('new-rw-pts').value='';document.getElementById('new-rw-qty').value='';
@@ -1237,6 +1305,32 @@ async function addReward(){
 
 async function removeReward(id){
   await db.collection('rewards').doc(id).delete();renderAdminRewards();showToast('تم حذف المكافأة');
+}
+
+// ======== SUPER ADMIN ========
+async function renderSuperOrgs(){
+  const c=document.getElementById('sup-org-list');
+  c.innerHTML='<div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div></div>';
+  try{
+    const [oq]=await Promise.all([db.collection('orgs').get(),loadUsers()]);
+    const orgs=oq.docs.map(d=>({id:d.id,...d.data()}));
+    const counts={};USERS_CACHE.forEach(u=>{counts[u.orgId]=(counts[u.orgId]||0)+1});
+    c.innerHTML=orgs.length?orgs.map(o=>`<div class="emp-row"><div class="emp-avatar" style="background:var(--ok-l)">🏢</div><div class="emp-info"><div class="emp-name">${o.name}</div><div class="emp-meta" dir="ltr" style="text-align:right">${(o.domains||[]).join(' · ')}</div><div class="emp-meta">${counts[o.id]||0} موظف</div></div><button class="btn-xs ${o.active===false?'btn-g':'btn-o'}" onclick="toggleOrg('${o.id}',${o.active===false})">${o.active===false?'تفعيل':'إيقاف'}</button></div>`).join(''):'<div class="empty"><div class="empty-icon">🏢</div><div class="empty-txt">لا توجد مؤسسات بعد — أضف أول مؤسسة</div></div>';
+  }catch(e){console.error(e);c.innerHTML='<div class="empty"><div class="empty-txt">تعذّر التحميل</div></div>'}
+}
+function toggleAddOrg(){const f=document.getElementById('add-org-form');f.style.display=f.style.display==='none'?'block':'none'}
+async function addOrg(){
+  const n=document.getElementById('new-org-name').value.trim();
+  const d=document.getElementById('new-org-domains').value.toLowerCase().split(',').map(x=>x.trim().replace(/^@/,'')).filter(Boolean);
+  if(!n||!d.length){showToast('أدخل الاسم ونطاق البريد');return}
+  try{
+    await db.collection('orgs').add({name:n,domains:d,active:true,createdAt:new Date().toISOString()});
+    toggleAddOrg();renderSuperOrgs();showToast('تمت إضافة المؤسسة');
+    document.getElementById('new-org-name').value='';document.getElementById('new-org-domains').value='';
+  }catch(e){console.error(e);showToast('⚠️ تعذّر الحفظ')}
+}
+async function toggleOrg(id,activate){
+  await db.collection('orgs').doc(id).update({active:activate});renderSuperOrgs();showToast(activate?'تم تفعيل المؤسسة':'تم إيقاف المؤسسة');
 }
 
 // ======== MY BOOKS ========
