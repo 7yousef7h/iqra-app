@@ -789,6 +789,15 @@ async function loadUsers(){
   const q=await (S.role==='super'?ref.limit(1000):ref.where('orgId','==',S.orgId).limit(500)).get();
   USERS_CACHE=q.docs.map(d=>({id:d.id,...d.data()})).filter(u=>u.role==='user').sort((a,b)=>(b.pts||0)-(a.pts||0));
 }
+// Call our own /api/ai backend (never Anthropic directly)
+async function askAI(prompt,opts={}){
+  const token=await auth.currentUser.getIdToken();
+  const r=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
+    body:JSON.stringify({messages:[{role:'user',content:prompt}],system:opts.system,max_tokens:opts.max_tokens||1500})});
+  const j=await r.json();
+  if(!r.ok)throw new Error(j.error||'AI error');
+  return j.text;
+}
 function emailDomain(e){return (e.split('@')[1]||'').toLowerCase().trim()}
 async function findOrgByDomain(domain){
   const q=await db.collection('orgs').where('domains','array-contains',domain).limit(1).get();
@@ -988,12 +997,7 @@ async function startAIQuiz(){
 حيث correct هو رقم فهرس الإجابة الصحيحة (0-3)`;
 
   try{
-    const resp=await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:2000,messages:[{role:"user",content:prompt}]})
-    });
-    const data=await resp.json();
-    const text=data.content.map(i=>i.text||'').join('');
+    const text=await askAI(prompt,{max_tokens:2000});
     const clean=text.replace(/```json|```/g,'').trim();
     quizData=JSON.parse(clean).questions;
   }catch(e){
