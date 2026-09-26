@@ -336,6 +336,23 @@ input,button,textarea,select{font-family:inherit}
 .no-partner-title{font-family:var(--ff);font-size:16px;font-weight:700;margin-bottom:6px}
 .no-partner-sub{font-size:13px;color:var(--tx3);margin-bottom:16px;line-height:1.7}
 
+/* Journal / badges / stats */
+.journal-box{margin-top:12px;text-align:right}
+.journal-box textarea{width:100%;min-height:70px;padding:12px;border:2px solid var(--bdr);border-radius:var(--r-sm);font-family:inherit;font-size:13px;line-height:1.7;background:var(--sf);color:var(--tx);resize:vertical}
+.journal-quote{background:var(--sf2);border-right:3px solid var(--accent);padding:10px 12px;border-radius:var(--r-sm);font-size:12.5px;line-height:1.8;color:var(--tx2);margin-top:8px;white-space:pre-wrap}
+.badge-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.badge{display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center}
+.badge-ic{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--sf2);border:2px solid var(--bdr);transition:transform .2s}
+.badge.on .badge-ic{background:var(--accent-l);border-color:var(--accent);box-shadow:0 2px 8px rgba(212,168,67,.35)}
+.badge:not(.on) .badge-ic{filter:grayscale(1);opacity:.4}
+.badge-lbl{font-family:var(--ff);font-size:10px;font-weight:600;color:var(--tx3);line-height:1.3}
+.badge.on .badge-lbl{color:var(--tx)}
+.stat-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat-box{background:var(--sf2);border-radius:var(--r-sm);padding:12px;text-align:center}
+.stat-box .v{font-family:var(--ff);font-size:22px;font-weight:800;color:var(--g1)}
+.stat-box .l{font-size:11px;color:var(--tx3);margin-top:2px}
+.share-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;border:2px solid var(--bdr);background:var(--sf);font-family:var(--ff);font-size:12px;font-weight:600;cursor:pointer}
+
 /* Utility */
 .mt-8{margin-top:8px}.mt-16{margin-top:16px}.mb-10{margin-bottom:10px}.mb-16{margin-bottom:16px}
 .txt-c{text-align:center}
@@ -420,6 +437,16 @@ input,button,textarea,select{font-family:inherit}
       </div>
 
       <div class="card">
+        <div class="card-head"><div class="card-title">إحصائياتي</div></div>
+        <div class="stat-2">
+          <div class="stat-box"><div class="v" id="st-wk-min">0</div><div class="l">دقيقة هذا الأسبوع</div></div>
+          <div class="stat-box"><div class="v" id="st-wk-pg">0</div><div class="l">صفحة هذا الأسبوع</div></div>
+          <div class="stat-box"><div class="v" id="st-mo-min">0</div><div class="l">دقيقة هذا الشهر</div></div>
+          <div class="stat-box"><div class="v" id="st-mo-ses">0</div><div class="l">جلسة هذا الشهر</div></div>
+        </div>
+      </div>
+
+      <div class="card">
         <div class="card-head"><div class="card-title">التقدّم نحو المكافأة</div><div class="card-link" onclick="showPage('rewards')">المتجر ←</div></div>
         <div class="reward-prog">
           <div class="prog-ring">
@@ -493,6 +520,14 @@ input,button,textarea,select{font-family:inherit}
           <div class="sd-icon">🎉</div>
           <div class="sd-title">أحسنت! أنجزت جلسة اليوم</div>
           <div class="sd-sub">عُد غداً لمواصلة سلسلتك</div>
+          <div class="journal-box">
+            <div style="font-family:var(--ff);font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:6px">✍️ يوميات القراءة — اقتباس أو ملاحظة من جلسة اليوم (اختياري)</div>
+            <textarea id="jr-text" placeholder="مثال: «العادة هي الفائدة المركّبة لتطوير الذات»"></textarea>
+            <div class="flex-row gap-8 mt-8">
+              <button class="btn-xs btn-g" onclick="saveJournal()">حفظ الملاحظة</button>
+              <button class="share-btn" onclick="shareSession()">📤 شارك إنجازك</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -540,6 +575,15 @@ input,button,textarea,select{font-family:inherit}
           <div class="ps-item"><div class="ps-val" id="pf-b">0</div><div class="ps-lbl">كتاب</div></div>
         </div>
       </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">🏅 الشارات</div><div class="card-link" id="badge-count">0 / 0</div></div>
+        <div class="badge-grid" id="badge-grid"></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><div class="card-title">✍️ يومياتي</div></div>
+        <div id="journal-list"></div>
+      </div>
+      <div class="card txt-c"><button class="share-btn" onclick="shareProfile()">📤 شارك ملفي القرائي</button></div>
       <div class="setting-row" onclick="showToast('قريباً — إعدادات الإشعارات')">
         <div class="setting-icon" style="background:var(--ok-l)">🔔</div>
         <div class="setting-label">الإشعارات</div>
@@ -1038,7 +1082,7 @@ function answerQuiz(idx){
   const q=quizData[quizIdx];
   const correct=idx===q.correct;
   q._answered=true;q._correct=correct;
-  if(correct)quizCorrect++;
+  if(correct){quizCorrect++;S.quizStreak=(S.quizStreak||0)+1}else S.quizStreak=0;
   const btns=document.querySelectorAll('.quiz-opt');
   btns.forEach((b,i)=>{
     b.disabled=true;
@@ -1102,7 +1146,7 @@ function finishQuiz(passed,score){
     document.getElementById('t-lbl').textContent='عُد غداً';document.getElementById('t-done').style.display='block';
     document.getElementById('t-book').disabled=true;document.getElementById('t-chapter').disabled=true;
     document.getElementById('t-pg-from').disabled=true;document.getElementById('t-pg-to').disabled=true;
-    refreshAll();showToast('✏️ +'+partialPts+' نقطة — أجب أفضل غداً');
+    refreshAll();showToast('✏️ +'+partialPts+' نقطة — أجب أفضل غداً');checkBadges();
   }
   populateBookHistory();
 }
@@ -1128,6 +1172,7 @@ function awardSession(aiScore){
     else if(last.toDateString()!==today.toDateString())S.streak=1;
   }else S.streak=1;
   if(S.streak>=7)S.pts+=5;
+  S.maxStreak=Math.max(S.maxStreak||0,S.streak);
   S.lastDate=today.toDateString();S.todayDone=true;
   S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:earnedPts,dur:chosenMin,quizScore:aiScore||0});
   save();confetti();
@@ -1140,7 +1185,81 @@ function awardSession(aiScore){
   document.getElementById('t-pg-from').disabled=true;
   document.getElementById('t-pg-to').disabled=true;
   refreshAll();showToast('🎉 +'+earnedPts+' نقطة — أحسنت!');
-  populateBookHistory();
+  populateBookHistory();checkBadges();
+}
+
+// ======== JOURNAL ========
+function saveJournal(){
+  const t=document.getElementById('jr-text').value.trim();
+  if(!t){showToast('اكتب شيئاً أولاً');return}
+  if(!S.log.length){showToast('لا توجد جلسة اليوم');return}
+  S.log[0].note=t;save();
+  document.getElementById('jr-text').value='';
+  showToast('✍️ حُفظت في يومياتك');renderJournal();renderLog();
+}
+function renderJournal(){
+  const c=document.getElementById('journal-list');if(!c)return;
+  const notes=(S.log||[]).filter(l=>l.note).slice(0,20);
+  c.innerHTML=notes.length?notes.map(l=>`<div class="journal-quote"><div style="font-family:var(--ff);font-size:11px;font-weight:600;color:var(--g1);margin-bottom:4px">📖 ${l.book} · ${new Date(l.date).toLocaleDateString('ar-AE',{day:'numeric',month:'short'})}</div>${l.note}</div>`).join(''):'<div class="empty"><div class="empty-icon">✍️</div><div class="empty-txt">بعد كل جلسة يمكنك تدوين اقتباس أو ملاحظة</div></div>';
+}
+
+// ======== BADGES ========
+const BADGES=[
+  {id:'first',ic:'🌱',lbl:'أول جلسة',test:s=>s.sessions>=1},
+  {id:'streak7',ic:'🔥',lbl:'7 أيام متواصلة',test:s=>s.streak>=7||s.maxStreak>=7},
+  {id:'streak30',ic:'🌟',lbl:'30 يوماً متواصلة',test:s=>s.streak>=30||s.maxStreak>=30},
+  {id:'pages100w',ic:'📄',lbl:'100 صفحة في أسبوع',test:s=>weekPages(s)>=100},
+  {id:'books5',ic:'📚',lbl:'5 كتب',test:s=>Object.keys(s.books||{}).length>=5},
+  {id:'quiz10',ic:'🎯',lbl:'10 إجابات صحيحة متتالية',test:s=>(s.quizStreak||0)>=10},
+  {id:'ses50',ic:'🏆',lbl:'50 جلسة',test:s=>s.sessions>=50},
+  {id:'hours10',ic:'⏳',lbl:'10 ساعات قراءة',test:s=>totalMin(s)>=600},
+];
+function totalMin(s){return (s.log||[]).reduce((a,l)=>a+(l.dur||15),0)}
+function weekPages(s){const w=new Date();w.setDate(w.getDate()-6);w.setHours(0,0,0,0);return (s.log||[]).filter(l=>new Date(l.date)>=w).reduce((a,l)=>a+(l.pgFrom&&l.pgTo?Math.max(0,l.pgTo-l.pgFrom+1):0),0)}
+function checkBadges(){
+  if(!S.badges)S.badges={};
+  let fresh=[];
+  BADGES.forEach(b=>{if(!S.badges[b.id]&&b.test(S)){S.badges[b.id]=new Date().toISOString();fresh.push(b)}});
+  if(fresh.length){save();setTimeout(()=>{confetti();showToast('🏅 شارة جديدة: '+fresh.map(b=>b.lbl).join(' · '))},600)}
+}
+function renderBadges(){
+  const g=document.getElementById('badge-grid');if(!g)return;
+  const earned=S.badges||{};
+  g.innerHTML=BADGES.map(b=>`<div class="badge ${earned[b.id]?'on':''}" onclick="${earned[b.id]?`shareBadge('${b.id}')`:`showToast('${b.lbl} — لم تُكتسب بعد')`}"><div class="badge-ic">${b.ic}</div><div class="badge-lbl">${b.lbl}</div></div>`).join('');
+  document.getElementById('badge-count').textContent=`${Object.keys(earned).length} / ${BADGES.length}`;
+}
+
+// ======== STATS ========
+function renderStats(){
+  const now=new Date();const wk=new Date(now);wk.setDate(now.getDate()-6);wk.setHours(0,0,0,0);
+  const mo=new Date(now.getFullYear(),now.getMonth(),1);
+  let wkMin=0,wkPg=0,moMin=0,moSes=0;
+  (S.log||[]).forEach(l=>{const d=new Date(l.date);const pg=l.pgFrom&&l.pgTo?Math.max(0,l.pgTo-l.pgFrom+1):0;
+    if(d>=wk){wkMin+=(l.dur||15);wkPg+=pg}
+    if(d>=mo){moMin+=(l.dur||15);moSes++}});
+  document.getElementById('st-wk-min').textContent=wkMin;
+  document.getElementById('st-wk-pg').textContent=wkPg;
+  document.getElementById('st-mo-min').textContent=moMin;
+  document.getElementById('st-mo-ses').textContent=moSes;
+}
+
+// ======== SHARE ========
+async function shareText(title,text){
+  const url=location.origin;
+  if(navigator.share){try{await navigator.share({title,text,url})}catch(e){}}
+  else{try{await navigator.clipboard.writeText(text+'\n'+url);showToast('📋 تم نسخ النص — الصقه في أي مكان')}catch(e){showToast(text)}}
+}
+function shareSession(){
+  const l=S.log[0];if(!l)return;
+  const q=l.note?`\n«${l.note}»`:'';
+  shareText('اقرأ واكسب',`📖 أنجزت اليوم جلسة قراءة في «${l.book}» (${l.dur||15} دقيقة)${q}\n🔥 سلسلتي: ${S.streak} يوم · 🪙 ${S.pts} نقطة\n#اقرأ_واكسب`);
+}
+function shareProfile(){
+  shareText('اقرأ واكسب',`📚 ملفي القرائي في «اقرأ واكسب»\n${S.sessions} جلسة · ${calcHours()} ساعة · ${Object.keys(S.books||{}).length} كتاب\n🔥 أطول سلسلة: ${Math.max(S.streak,S.maxStreak||0)} يوم · 🏅 ${Object.keys(S.badges||{}).length} شارات\n#اقرأ_واكسب`);
+}
+function shareBadge(id){
+  const b=BADGES.find(x=>x.id===id);if(!b)return;
+  shareText('اقرأ واكسب',`${b.ic} حصلت على شارة «${b.lbl}» في «اقرأ واكسب»!\n#اقرأ_واكسب`);
 }
 
 // ======== RENDER ========
@@ -1156,7 +1275,7 @@ function refreshAll(){
   document.getElementById('rp-pct').textContent=Math.round(pct)+'%';
   document.getElementById('rp-text').textContent=`${S.sessions%GOAL} من ${GOAL} جلسة`;
   // Week
-  renderWeek();renderChart();renderBoard();renderRewards();renderLog();renderProfile();
+  renderWeek();renderChart();renderBoard();renderRewards();renderLog();renderProfile();renderStats();renderBadges();renderJournal();
   // Timer state
   if(S.todayDone){
     document.getElementById('t-btn').innerHTML='✅ أنجزت جلسة اليوم';
@@ -1229,7 +1348,8 @@ function renderLog(){
     const aiBadge=s.quizScore?`<span style="background:${s.quizScore>=3?'var(--ok)':'var(--warn)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">🤖 ${s.quizScore}/5</span>`:(s.aiScore?`<span style="background:${s.aiScore>=7?'var(--ok)':'var(--warn)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">🤖 ${s.aiScore}/10</span>`:'');
     const chapInfo=s.chapter?` · ${s.chapter}`:'';
     const pgInfo=s.pgFrom&&s.pgTo?` · ص${s.pgFrom}–${s.pgTo}`:'';
-    return`<div class="list-item"><div class="li-icon" style="background:var(--ok-l)">📚</div><div class="li-body"><div class="li-title">${s.book}</div><div class="li-sub">${d.toLocaleDateString('ar-AE',{day:'numeric',month:'short'})} · ${s.dur||15} د${chapInfo}${pgInfo} ${aiBadge}</div></div><div class="li-end" style="color:var(--accent-d)">+${s.pts}</div></div>`;
+    const note=s.note?`<div class="journal-quote" style="margin:0 0 8px">${s.note}</div>`:'';
+    return`<div class="list-item"><div class="li-icon" style="background:var(--ok-l)">📚</div><div class="li-body"><div class="li-title">${s.book}</div><div class="li-sub">${d.toLocaleDateString('ar-AE',{day:'numeric',month:'short'})} · ${s.dur||15} د${chapInfo}${pgInfo} ${aiBadge}</div></div><div class="li-end" style="color:var(--accent-d)">+${s.pts}</div></div>${note}`;
   }).join('');
 }
 
