@@ -46,6 +46,11 @@
   --sh:0 2px 16px rgba(0,0,0,0.2);--sh2:0 8px 32px rgba(0,0,0,0.3);
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{overflow-x:hidden;max-width:100%}
+input,select,textarea,button{min-width:0;max-width:100%}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+.page,.card{max-width:100%;overflow-x:hidden}
 :root{padding-top:env(safe-area-inset-top,0);padding-bottom:env(safe-area-inset-bottom,0)}
 html{scroll-padding-top:env(safe-area-inset-top,0)}
 html,body{height:100%;overflow:hidden}
@@ -481,12 +486,12 @@ input,button,textarea,select{font-family:inherit}
       <div class="card">
         <div class="card-title mb-10">بيانات الجلسة</div>
         <div class="book-field"><input id="t-book" placeholder="📚 اسم الكتاب" list="book-history"><datalist id="book-history"></datalist></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-          <div class="book-field" style="margin:0"><input id="t-chapter" placeholder="📑 الفصل (اختياري)"></div>
-          <div style="display:flex;gap:6px;align-items:center">
-            <input id="t-pg-from" type="number" min="1" placeholder="من ص" dir="ltr" style="flex:1;padding:14px 8px;border:2px solid var(--bdr);border-radius:var(--r-sm);font-size:14px;text-align:center;background:var(--sf);color:var(--tx)">
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-bottom:12px">
+          <div class="book-field" style="margin:0;min-width:0"><input id="t-chapter" placeholder="📑 الفصل (اختياري)"></div>
+          <div style="display:flex;gap:6px;align-items:center;min-width:0">
+            <input id="t-pg-from" type="number" min="1" placeholder="من ص" dir="ltr" style="flex:1;min-width:0;width:100%;padding:14px 4px;border:2px solid var(--bdr);border-radius:var(--r-sm);font-size:14px;text-align:center;background:var(--sf);color:var(--tx)">
             <span style="color:var(--tx3);font-size:13px">→</span>
-            <input id="t-pg-to" type="number" min="1" placeholder="إلى ص" dir="ltr" style="flex:1;padding:14px 8px;border:2px solid var(--bdr);border-radius:var(--r-sm);font-size:14px;text-align:center;background:var(--sf);color:var(--tx)">
+            <input id="t-pg-to" type="number" min="1" placeholder="إلى ص" dir="ltr" style="flex:1;min-width:0;width:100%;padding:14px 4px;border:2px solid var(--bdr);border-radius:var(--r-sm);font-size:14px;text-align:center;background:var(--sf);color:var(--tx)">
           </div>
         </div>
         <div class="card-title mb-10" style="text-align:center">مدة الجلسة</div>
@@ -515,6 +520,7 @@ input,button,textarea,select{font-family:inherit}
             </div>
           </div>
           <button class="btn btn-g" id="t-btn" onclick="toggleTimer()">▶ ابدأ جلسة القراءة</button>
+          <div id="t-ai-status" style="display:none;text-align:center;font-size:12px;color:var(--tx3);margin-top:10px"></div>
         </div>
         <div class="session-done-card" id="t-done" style="display:none">
           <div class="sd-icon">🎉</div>
@@ -584,6 +590,11 @@ input,button,textarea,select{font-family:inherit}
         <div id="journal-list"></div>
       </div>
       <div class="card txt-c"><button class="share-btn" onclick="shareProfile()">📤 شارك ملفي القرائي</button></div>
+      <div class="setting-row" onclick="cycleLevel()">
+        <div class="setting-icon" style="background:var(--accent-l)">🎚️</div>
+        <div class="setting-label">مستوى الأسئلة: <b id="pf-level">متوسط</b></div>
+        <div class="setting-arrow">‹</div>
+      </div>
       <div class="setting-row" onclick="showToast('قريباً — إعدادات الإشعارات')">
         <div class="setting-icon" style="background:var(--ok-l)">🔔</div>
         <div class="setting-label">الإشعارات</div>
@@ -723,6 +734,19 @@ input,button,textarea,select{font-family:inherit}
 </div>
 
 <!-- AI Quiz Modal -->
+<!-- Random page-capture check -->
+<div class="modal-bg" id="capture-modal">
+  <div class="modal" style="text-align:center">
+    <div style="font-size:44px;margin-bottom:6px">📸</div>
+    <div style="font-family:var(--ff);font-size:17px;font-weight:800;margin-bottom:6px">لحظة تحقق</div>
+    <div style="font-size:13px;color:var(--tx2);line-height:1.8;margin-bottom:14px">صوّر الصفحة التي تقرأها <b>الآن</b>. سيقرأها المساعد الذكي ويعدّ لك أسئلة عنها في نهاية الجلسة.<br><span style="color:var(--tx3);font-size:12px">المؤقّت متوقف مؤقتاً</span></div>
+    <input type="file" id="cap-input" accept="image/*" capture="environment" style="display:none" onchange="onCapture(this)">
+    <img id="cap-preview" style="display:none;max-width:100%;max-height:220px;border-radius:var(--r-sm);margin-bottom:12px;border:2px solid var(--bdr)">
+    <button class="btn btn-g" id="cap-btn" onclick="document.getElementById('cap-input').click()">📷 التقط صورة الصفحة</button>
+    <button class="btn btn-o mt-8" onclick="skipCapture()">تخطّي (نقاط أساسية فقط)</button>
+  </div>
+</div>
+
 <div class="modal-bg" id="quiz-modal">
   <div class="modal-sheet">
     <div class="modal-handle"></div>
@@ -753,6 +777,8 @@ input,button,textarea,select{font-family:inherit}
 <script>
 // ======== STATE ========
 let DURATION = 15 * 60;
+let captureAt=null, captureState='none'; // none | pending | done | skipped
+let pageAI=null, pageAIPromise=null;
 let chosenMin = 15;
 const PTS_PER_SESSION = 10;
 const GOAL = 50;
@@ -837,7 +863,7 @@ async function loadUsers(){
 async function askAI(prompt,opts={}){
   const token=await auth.currentUser.getIdToken();
   const r=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-    body:JSON.stringify({messages:[{role:'user',content:prompt}],system:opts.system,max_tokens:opts.max_tokens||1500})});
+    body:JSON.stringify({messages:[{role:'user',content:opts.content||prompt}],system:opts.system,max_tokens:opts.max_tokens||1500})});
   const j=await r.json();
   if(!r.ok)throw new Error(j.error||'AI error');
   return j.text;
@@ -988,8 +1014,64 @@ function startT(){
   document.querySelectorAll('.dur-btn').forEach(b=>b.disabled=true);
   document.getElementById('t-btn').innerHTML='⏸ إيقاف مؤقت';document.getElementById('t-btn').className='btn btn-o';
   document.getElementById('t-lbl').textContent='جارٍ القراءة...';
+  if(captureAt===null){captureAt=Math.floor(DURATION*(0.33+Math.random()*0.42));captureState='pending';pageAI=null;pageAIPromise=null;document.getElementById('t-ai-status').style.display='none'}
+  timerInt=setInterval(()=>{
+    timeLeft--;updateTimer();
+    const elapsed=DURATION-timeLeft;
+    if(captureState==='pending'&&elapsed>=captureAt){openCapture();return}
+    if(timeLeft<=0)endSession();
+  },1000);
+}
+function openCapture(){
+  clearInterval(timerInt);running=false;
+  document.getElementById('t-lbl').textContent='📸 لحظة تحقق';
+  document.getElementById('cap-preview').style.display='none';
+  document.getElementById('cap-btn').textContent='📷 التقط صورة الصفحة';document.getElementById('cap-btn').disabled=false;
+  document.getElementById('capture-modal').classList.add('open');
+}
+function resumeAfterCapture(){
+  document.getElementById('capture-modal').classList.remove('open');
+  running=true;
+  document.getElementById('t-btn').innerHTML='⏸ إيقاف مؤقت';document.getElementById('t-btn').className='btn btn-o';
+  document.getElementById('t-lbl').textContent='جارٍ القراءة...';
   timerInt=setInterval(()=>{timeLeft--;updateTimer();if(timeLeft<=0)endSession()},1000);
 }
+function skipCapture(){captureState='skipped';setAIStatus('⚪ تخطّيت التحقق — ستحصل على النقاط الأساسية فقط');resumeAfterCapture()}
+function setAIStatus(t){const e=document.getElementById('t-ai-status');e.style.display='block';e.textContent=t}
+function shrinkImage(file,max=1280){
+  return new Promise((res,rej)=>{
+    const img=new Image();const url=URL.createObjectURL(file);
+    img.onload=()=>{const r=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(url);res(c.toDataURL('image/jpeg',0.8))};
+    img.onerror=rej;img.src=url;
+  });
+}
+async function onCapture(inp){
+  const f=inp.files&&inp.files[0];if(!f)return;
+  const btn=document.getElementById('cap-btn');btn.disabled=true;btn.textContent='جارٍ التجهيز...';
+  let dataUrl;try{dataUrl=await shrinkImage(f)}catch(e){showToast('تعذّر قراءة الصورة');btn.disabled=false;btn.textContent='📷 التقط صورة الصفحة';return}
+  const prev=document.getElementById('cap-preview');prev.src=dataUrl;prev.style.display='block';
+  captureState='done';inp.value='';
+  setAIStatus('🤖 جارٍ تحليل الصفحة في الخلفية...');
+  pageAIPromise=analyzePage(dataUrl.split(',')[1]).then(r=>{pageAI=r;setAIStatus('✅ قرأ المساعد صفحتك — الأسئلة جاهزة لنهاية الجلسة');return r}).catch(e=>{console.error(e);pageAI=null;setAIStatus('⚠️ تعذّر تحليل الصفحة — سنستخدم أسئلة عامة');return null});
+  setTimeout(resumeAfterCapture,700);
+}
+async function analyzePage(b64){
+  const book=document.getElementById('t-book').value.trim();
+  const level=S.level||'متوسط';
+  const prompt=`هذه صورة صفحة من كتاب يقرأه المستخدم (الكتاب: "${book}"). مستوى القارئ: ${level}.
+1) استخرج نص الصفحة بدقة.
+2) اكتب ملخصاً للصفحة في 2-3 جمل بالعربية الفصحى.
+3) أنشئ 5 أسئلة اختيار من متعدد (4 خيارات) عن محتوى هذه الصفحة تحديداً: سؤالان استيعاب مباشر، سؤالان استنتاج، وسؤال مفردات (معنى كلمة وردت في الصفحة). اضبط الصعوبة على مستوى "${level}". الخيارات الخاطئة معقولة.
+إن لم تكن الصورة صفحة كتاب مقروءة، أعد {"error":"not_a_page"}.
+أجب بصيغة JSON فقط:
+{"summary":"...","questions":[{"q":"...","opts":["","","",""],"correct":0,"hint":"...","type":"استيعاب|استنتاج|مفردات"}]}`;
+  const text=await askAI(null,{max_tokens:2500,content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:prompt}]});
+  const j=JSON.parse(text.replace(/```json|```/g,'').trim());
+  if(j.error||!j.questions||!j.questions.length)throw new Error('bad page');
+  return j;
+}
+function cycleLevel(){const L=['مبتدئ','متوسط','متقدم'];S.level=L[(L.indexOf(S.level||'متوسط')+1)%3];save();document.getElementById('pf-level').textContent=S.level;showToast('مستوى الأسئلة: '+S.level)}
+
 function stopT(){
   running=false;clearInterval(timerInt);
   document.querySelectorAll('.dur-btn').forEach(b=>b.disabled=false);
@@ -1002,7 +1084,9 @@ function updateTimer(){
   const p=1-(timeLeft/DURATION);
   document.getElementById('t-prog').style.strokeDashoffset=678.6*(1-p);
 }
-function endSession(){clearInterval(timerInt);running=false;startAIQuiz()}
+function endSession(){clearInterval(timerInt);running=false;captureAt=null;
+  if(captureState==='skipped'){finishUnverified();return}
+  startAIQuiz()}
 
 // ======== AI QUIZ VERIFICATION ========
 let quizData=[], quizIdx=0, quizCorrect=0;
@@ -1023,6 +1107,16 @@ async function startAIQuiz(){
   document.getElementById('qz-context').textContent=context;
   document.getElementById('quiz-modal').classList.add('open');
   quizIdx=0;quizCorrect=0;
+
+  // Prefer questions generated from the photographed page
+  if(pageAIPromise){await pageAIPromise}
+  if(pageAI&&pageAI.questions){
+    quizData=pageAI.questions.slice(0,5);
+    document.getElementById('qz-context').textContent=context+' · 📸 من الصفحة المصوّرة';
+    document.getElementById('qz-loading').style.display='none';
+    document.getElementById('qz-content').style.display='block';
+    renderQuizQuestion();return;
+  }
 
   let prompt=`أنت ممتحن قراءة ذكي في تطبيق عربي. المستخدم يقول إنه قرأ:
 الكتاب: "${book}"`;
@@ -1063,7 +1157,7 @@ async function startAIQuiz(){
 function renderQuizQuestion(){
   const q=quizData[quizIdx];
   document.getElementById('qz-num').textContent=quizIdx+1;
-  document.getElementById('qz-text').textContent=q.q;
+  document.getElementById('qz-text').textContent=(q.type?`[${q.type}] `:'')+q.q;
   // Dots
   document.getElementById('qz-dots').innerHTML=quizData.map((_,i)=>{
     let cls='qz-dot';
@@ -1113,6 +1207,7 @@ function showQuizResult(){
       <div class="ai-eval-body">${passed?`أجبت ${quizCorrect} من 5 إجابات صحيحة. هذا يؤكد قراءتك الفعلية!`:`أجبت ${quizCorrect} من 5 فقط. راجع ما قرأته وحاول مجدداً في الجلسة القادمة.`}</div>
       <div class="ai-eval-score ${passed?'good':'weak'}">${quizCorrect}/5 ✓</div>
     </div>
+    ${pageAI&&pageAI.summary?`<div class="card" style="margin-top:12px;text-align:right"><div class="card-title mb-10">📝 ملخص الصفحة التي صوّرتها</div><div style="font-size:13px;line-height:1.9;color:var(--tx2)">${pageAI.summary}</div><div style="font-size:11px;color:var(--tx3);margin-top:8px">راجع الملخص وقارنه بفهمك</div></div>`:''}
     <button class="btn ${passed?'btn-g':'btn-a'} mt-16" onclick="finishQuiz(${passed},${quizCorrect})">
       ${passed?'✓ احصل على نقاطك':'حسناً'}
     </button>`;
@@ -1139,7 +1234,7 @@ function finishQuiz(passed,score){
     const partialPts=Math.max(3,Math.round(chosenMin/15*3));
     S.sessions++;S.pts+=partialPts;
     const today=new Date();S.lastDate=today.toDateString();S.todayDone=true;
-    S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:partialPts,dur:chosenMin,quizScore:score});
+    S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:partialPts,dur:chosenMin,quizScore:score,verified:!!pageAI,summary:pageAI?pageAI.summary:null});
     save();
     timeLeft=DURATION;updateTimer();
     document.getElementById('t-btn').innerHTML='✅ أنجزت جلسة اليوم';document.getElementById('t-btn').disabled=true;document.getElementById('t-btn').className='btn btn-g';
@@ -1149,6 +1244,27 @@ function finishQuiz(passed,score){
     refreshAll();showToast('✏️ +'+partialPts+' نقطة — أجب أفضل غداً');checkBadges();
   }
   populateBookHistory();
+}
+function finishUnverified(){
+  const book=document.getElementById('t-book').value.trim();
+  const chapter=document.getElementById('t-chapter').value.trim();
+  const pgFrom=parseInt(document.getElementById('t-pg-from').value)||0;
+  const pgTo=parseInt(document.getElementById('t-pg-to').value)||0;
+  if(!S.books)S.books={};
+  if(!S.books[book])S.books[book]={sessions:0,pages:[],chapters:[],totalPages:0,firstDate:new Date().toISOString()};
+  S.books[book].sessions++;S.books[book].lastDate=new Date().toISOString();
+  if(chapter&&!S.books[book].chapters.includes(chapter))S.books[book].chapters.push(chapter);
+  if(pgFrom&&pgTo){S.books[book].pages.push({from:pgFrom,to:pgTo});S.books[book].totalPages+=Math.max(0,pgTo-pgFrom+1)}
+  const basePts=Math.max(3,Math.round(chosenMin/15*3));
+  S.sessions++;S.pts+=basePts;
+  const today=new Date();S.lastDate=today.toDateString();S.todayDone=true;
+  S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:basePts,dur:chosenMin,verified:false,skipped:true});
+  save();
+  timeLeft=DURATION;updateTimer();
+  document.getElementById('t-btn').innerHTML='✅ أنجزت جلسة اليوم';document.getElementById('t-btn').disabled=true;document.getElementById('t-btn').className='btn btn-g';
+  document.getElementById('t-lbl').textContent='عُد غداً';document.getElementById('t-done').style.display='block';
+  ['t-book','t-chapter','t-pg-from','t-pg-to'].forEach(i=>document.getElementById(i).disabled=true);
+  refreshAll();showToast('✅ +'+basePts+' نقطة (جلسة غير موثّقة)');checkBadges();populateBookHistory();
 }
 function populateBookHistory(){
   const dl=document.getElementById('book-history');
@@ -1174,7 +1290,7 @@ function awardSession(aiScore){
   if(S.streak>=7)S.pts+=5;
   S.maxStreak=Math.max(S.maxStreak||0,S.streak);
   S.lastDate=today.toDateString();S.todayDone=true;
-  S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:earnedPts,dur:chosenMin,quizScore:aiScore||0});
+  S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:earnedPts,dur:chosenMin,verified:!!pageAI,summary:pageAI?pageAI.summary:null,quizScore:aiScore||0});
   save();confetti();
   timeLeft=DURATION;updateTimer();
   document.getElementById('t-btn').innerHTML='✅ أنجزت جلسة اليوم';document.getElementById('t-btn').disabled=true;document.getElementById('t-btn').className='btn btn-g';
@@ -1345,7 +1461,8 @@ function renderLog(){
   if(!S.log.length){c.innerHTML='<div class="empty"><div class="empty-icon">📖</div><div class="empty-txt">ابدأ أول جلسة قراءة</div></div>';return}
   c.innerHTML=S.log.slice(0,50).map(s=>{
     const d=new Date(s.date);
-    const aiBadge=s.quizScore?`<span style="background:${s.quizScore>=3?'var(--ok)':'var(--warn)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">🤖 ${s.quizScore}/5</span>`:(s.aiScore?`<span style="background:${s.aiScore>=7?'var(--ok)':'var(--warn)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">🤖 ${s.aiScore}/10</span>`:'');
+    const vBadge=s.verified?`<span style="background:var(--g1);color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">📸 موثّقة</span>`:(s.skipped?`<span style="background:var(--tx3);color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">غير موثّقة</span>`:'');
+    const aiBadge=vBadge+(s.quizScore?`<span style="background:${s.quizScore>=3?'var(--ok)':'var(--warn)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">🤖 ${s.quizScore}/5</span>`:(s.aiScore?`<span style="background:${s.aiScore>=7?'var(--ok)':'var(--warn)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">🤖 ${s.aiScore}/10</span>`:''));
     const chapInfo=s.chapter?` · ${s.chapter}`:'';
     const pgInfo=s.pgFrom&&s.pgTo?` · ص${s.pgFrom}–${s.pgTo}`:'';
     const note=s.note?`<div class="journal-quote" style="margin:0 0 8px">${s.note}</div>`:'';
@@ -1356,6 +1473,7 @@ function renderLog(){
 function renderProfile(){
   document.getElementById('pf-name').textContent=S.name||'—';
   document.getElementById('pf-role').textContent=S.orgName||'—';
+  const lv=document.getElementById('pf-level');if(lv)lv.textContent=S.level||'متوسط';
   document.getElementById('pf-s').textContent=S.sessions;
   document.getElementById('pf-h').textContent=calcHours();
   const books=[...new Set(S.log.map(l=>l.book))];

@@ -4,7 +4,7 @@
 
 const FIREBASE_WEB_KEY = 'AIzaSyC1GMBmBpFkT441mYmKBSe_tEjBZUrqGJU'; // public, same as in index.html
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5';
-const MAX_TOKENS_CAP = 3000;
+const MAX_TOKENS_CAP = 4000;
 
 // simple per-instance rate limit: max N calls per user per hour
 const RATE = { limit: 40, windowMs: 60 * 60 * 1000 };
