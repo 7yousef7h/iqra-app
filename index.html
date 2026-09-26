@@ -58,12 +58,12 @@ body{font-family:var(--fb);background:var(--bg);color:var(--tx);line-height:1.6;
 input,button,textarea,select{font-family:inherit}
 
 /* ===== APP SHELL ===== */
-.app{max-width:430px;margin:0 auto;height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden;background:var(--bg)}
+.app{max-width:430px;width:100%;margin:0 auto;height:100%;display:flex;flex-direction:column;position:relative;overflow:hidden;overflow:clip;background:var(--bg)}
 
 /* Screens */
-.screen{position:absolute;inset:0;display:flex;flex-direction:column;transition:transform .35s cubic-bezier(.4,0,.2,1),opacity .35s;z-index:1;background:var(--bg)}
-.screen.hidden{transform:translateX(-30%);opacity:0;pointer-events:none;z-index:0}
-.screen.slide-right{transform:translateX(100%);opacity:0;pointer-events:none;z-index:0}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;transition:transform .35s cubic-bezier(.4,0,.2,1),opacity .35s,visibility 0s .35s;z-index:1;background:var(--bg)}
+.screen.hidden{transform:scale(.96);opacity:0;visibility:hidden;pointer-events:none;z-index:0}
+.screen.slide-right{transform:scale(.96);opacity:0;visibility:hidden;pointer-events:none;z-index:0}
 
 /* ===== SPLASH ===== */
 #splash{background:linear-gradient(160deg,var(--g1),var(--g2),var(--g3));z-index:50;align-items:center;justify-content:center;color:#fff}
@@ -264,8 +264,8 @@ input,button,textarea,select{font-family:inherit}
 .chart-val{font-family:var(--ff);font-size:10px;font-weight:700;color:var(--g1)}
 
 /* Notif */
-.toast{position:fixed;top:calc(20px + env(safe-area-inset-top,0));left:50%;transform:translateX(-50%) translateY(-120%);background:var(--g1);color:#fff;padding:14px 24px;border-radius:var(--r-md);font-family:var(--ff);font-size:13px;font-weight:600;box-shadow:var(--sh2);z-index:200;transition:transform .3s;max-width:360px;text-align:center}
-.toast.show{transform:translateX(-50%) translateY(0)}
+.toast{position:fixed;top:calc(20px + env(safe-area-inset-top,0));left:16px;right:16px;margin:0 auto;width:max-content;max-width:calc(100% - 32px);transform:translateY(-120%);background:var(--g1);color:#fff;padding:14px 24px;border-radius:var(--r-md);font-family:var(--ff);font-size:13px;font-weight:600;box-shadow:var(--sh2);z-index:200;transition:transform .3s;text-align:center}
+.toast.show{transform:translateY(0)}
 
 /* Confetti */
 @keyframes cfall{0%{transform:translateY(-60px) rotate(0);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
@@ -740,7 +740,7 @@ input,button,textarea,select{font-family:inherit}
 <!-- AI Quiz Modal -->
 <!-- Random page-capture check -->
 <div class="modal-bg" id="capture-modal">
-  <div class="modal" style="text-align:center">
+  <div class="modal-sheet" style="text-align:center">
     <div style="font-size:44px;margin-bottom:6px">📸</div>
     <div style="font-family:var(--ff);font-size:17px;font-weight:800;margin-bottom:6px">لحظة تحقق</div>
     <div style="font-size:13px;color:var(--tx2);line-height:1.8;margin-bottom:14px">صوّر الصفحة التي تقرأها <b>الآن</b>. سيقرأها المساعد الذكي ويعدّ لك أسئلة عنها في نهاية الجلسة.<br><span style="color:var(--tx3);font-size:12px">المؤقّت متوقف مؤقتاً</span></div>
