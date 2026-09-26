@@ -1,5 +1,5 @@
 // Service Worker — makes the app installable and work offline
-const CACHE = 'iqra-v12';
+const CACHE = 'iqra-v14';
 const FILES = ['./', './index.html', './manifest.json', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {

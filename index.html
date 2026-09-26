@@ -498,6 +498,12 @@ input,button,textarea,select{font-family:inherit}
       <div class="card">
         <div class="card-title mb-10">بيانات الجلسة</div>
         <div class="book-field"><input id="t-book" placeholder="📚 اسم الكتاب" list="book-history"><datalist id="book-history"></datalist></div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin-bottom:12px;align-items:stretch">
+          <div class="book-field" style="margin:0;min-width:0"><input id="t-author" placeholder="✍️ المؤلف"></div>
+          <button class="btn-xs btn-o" style="padding:0 12px;white-space:nowrap" onclick="document.getElementById('cover-input').click()">📷 الغلاف</button>
+          <input type="file" id="cover-input" accept="image/*" capture="environment" style="display:none" onchange="onCover(this)">
+        </div>
+        <div id="cover-status" style="display:none;font-size:12px;color:var(--tx3);margin:-6px 0 12px;line-height:1.7"></div>
         <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;margin-bottom:12px">
           <div class="book-field" style="margin:0;min-width:0"><input id="t-chapter" placeholder="📑 الفصل (اختياري)"></div>
           <div style="display:flex;gap:6px;align-items:center;min-width:0">
@@ -536,8 +542,8 @@ input,button,textarea,select{font-family:inherit}
         </div>
         <div class="session-done-card" id="t-done" style="display:none">
           <div class="sd-icon">🎉</div>
-          <div class="sd-title">أحسنت! أنجزت جلسة اليوم</div>
-          <div class="sd-sub">عُد غداً لمواصلة سلسلتك</div>
+          <div class="sd-title">أحسنت! أنجزت الجلسة</div>
+          <div class="sd-sub">سلسلتك محفوظة لليوم — يمكنك بدء جلسة أخرى متى شئت</div>
           <div class="journal-box">
             <div style="font-family:var(--ff);font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:6px">✍️ يوميات القراءة — اقتباس أو ملاحظة من جلسة اليوم (اختياري)</div>
             <textarea id="jr-text" placeholder="مثال: «العادة هي الفائدة المركّبة لتطوير الذات»"></textarea>
@@ -871,7 +877,7 @@ async function loadUsers(){
 async function askAI(prompt,opts={}){
   const token=await auth.currentUser.getIdToken();
   const r=await fetch('/api/ai',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},
-    body:JSON.stringify({messages:[{role:'user',content:opts.content||prompt}],system:opts.system,max_tokens:opts.max_tokens||1500})});
+    body:JSON.stringify({messages:[{role:'user',content:opts.content||prompt}],system:opts.system,max_tokens:opts.max_tokens||1500,search:!!opts.search})});
   const j=await r.json();
   if(!r.ok)throw new Error(j.error||'AI error');
   return j.text;
@@ -1052,14 +1058,13 @@ function hide(id){document.getElementById(id).classList.add('hidden')}
 
 // ======== TIMER ========
 function toggleTimer(){
-  if(S.todayDone)return;
   running?stopT():startT();
 }
 function startT(){
   const inp=document.getElementById('t-book');
   if(!inp.value.trim()){inp.style.borderColor='var(--err)';inp.setAttribute('placeholder','⚠️ أدخل اسم الكتاب');setTimeout(()=>{inp.style.borderColor='';inp.setAttribute('placeholder','📚 اسم الكتاب')},2000);return}
   running=true;inp.disabled=true;
-  document.getElementById('t-chapter').disabled=true;
+  document.getElementById('t-chapter').disabled=true;document.getElementById('t-author').disabled=true;
   document.getElementById('t-pg-from').disabled=true;
   document.getElementById('t-pg-to').disabled=true;
   document.querySelectorAll('.dur-btn').forEach(b=>b.disabled=true);
@@ -1117,9 +1122,24 @@ async function analyzePage(b64){
 أجب بصيغة JSON فقط:
 {"summary":"...","questions":[{"q":"...","opts":["","","",""],"correct":0,"hint":"...","type":"استيعاب|استنتاج|مفردات"}]}`;
   const text=await askAI(null,{max_tokens:2500,content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:prompt}]});
-  const j=JSON.parse(text.replace(/```json|```/g,'').trim());
+  const mm=text.match(/\{[\s\S]*\}/);const j=JSON.parse(mm?mm[0]:text);
   if(j.error||!j.questions||!j.questions.length)throw new Error('bad page');
   return j;
+}
+let bookInfo=null; // from cover / lookup: {title,author,about}
+async function onCover(inp){
+  const f=inp.files&&inp.files[0];if(!f)return;
+  const st=document.getElementById('cover-status');st.style.display='block';st.textContent='🤖 جارٍ التعرف على الكتاب من الغلاف...';
+  try{
+    const dataUrl=await shrinkImage(f,1000);inp.value='';
+    const text=await askAI(null,{max_tokens:800,search:true,content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:dataUrl.split(',')[1]}},{type:'text',text:'هذه صورة غلاف كتاب. حدّد عنوان الكتاب والمؤلف بدقة (ابحث للتأكد إن لزم)، ثم اكتب نبذة من 3-4 جمل عن محتواه وأفكاره الرئيسية. أجب بصيغة JSON فقط: {"title":"...","author":"...","about":"..."}'}]});
+    const j=JSON.parse(text.replace(/```json|```/g,'').trim());
+    bookInfo=j;
+    const tb=document.getElementById('t-book'),ta=document.getElementById('t-author');
+    if(j.title&&!tb.value.trim())tb.value=j.title;
+    if(j.author&&!ta.value.trim())ta.value=j.author;
+    st.textContent=`✅ ${j.title||''}${j.author?' — '+j.author:''}`;
+  }catch(e){console.error(e);st.textContent='⚠️ تعذّر التعرف على الغلاف: '+e.message}
 }
 function cycleLevel(){const L=['مبتدئ','متوسط','متقدم'];S.level=L[(L.indexOf(S.level||'متوسط')+1)%3];save();document.getElementById('pf-level').textContent=S.level;showToast('مستوى الأسئلة: '+S.level)}
 
@@ -1169,8 +1189,14 @@ async function startAIQuiz(){
     renderQuizQuestion();return;
   }
 
+  const author=document.getElementById('t-author').value.trim();
+  const saved=(S.books&&S.books[book]&&S.books[book].info)||null;
+  const info=bookInfo||saved;
   let prompt=`أنت ممتحن قراءة ذكي في تطبيق عربي. المستخدم يقول إنه قرأ:
 الكتاب: "${book}"`;
+  if(author) prompt+=`\nالمؤلف: "${author}"`;
+  if(info&&info.about) prompt+=`\nنبذة عن الكتاب: ${info.about}`;
+  prompt+=`\nإن لم تكن متأكداً من محتوى هذا الكتاب تحديداً، ابحث عنه أولاً ثم اكتب الأسئلة.`;
   if(chapter) prompt+=`\nالفصل: "${chapter}"`;
   if(pgFrom&&pgTo) prompt+=`\nالصفحات: من ${pgFrom} إلى ${pgTo}`;
   else if(pgFrom) prompt+=`\nمن الصفحة: ${pgFrom}`;
@@ -1186,10 +1212,12 @@ async function startAIQuiz(){
 حيث correct هو رقم فهرس الإجابة الصحيحة (0-3)`;
 
   try{
-    const text=await askAI(prompt,{max_tokens:2000});
-    const clean=text.replace(/```json|```/g,'').trim();
-    quizData=JSON.parse(clean).questions;
+    const text=await askAI(prompt,{max_tokens:2500,search:true});
+    const m=text.match(/\{[\s\S]*\}/);
+    quizData=JSON.parse(m?m[0]:text).questions;
+    if(!quizData||!quizData.length)throw new Error('no questions');
   }catch(e){
+    console.error(e);showToast('⚠️ تعذّر توليد الأسئلة: '+(e.message||'خطأ'));
     // Fallback questions
     quizData=[
       {q:`ما الموضوع الرئيسي الذي تناوله "${book}" في الجزء الذي قرأته؟`,opts:['فكرة فلسفية عميقة','قصة شخصية ملهمة','تحليل علمي دقيق','نقد اجتماعي'],correct:0,hint:'فكّر في الفكرة المحورية'},
@@ -1275,6 +1303,7 @@ function finishQuiz(passed,score){
   if(!S.books)S.books={};
   if(!S.books[book])S.books[book]={sessions:0,pages:[],chapters:[],totalPages:0,firstDate:new Date().toISOString()};
   S.books[book].sessions++;
+  {const au=document.getElementById('t-author').value.trim();if(au)S.books[book].author=au;if(bookInfo)S.books[book].info={title:bookInfo.title||book,author:bookInfo.author||au,about:bookInfo.about||''}}
   S.books[book].lastDate=new Date().toISOString();
   if(chapter&&!S.books[book].chapters.includes(chapter))S.books[book].chapters.push(chapter);
   if(pgFrom&&pgTo){S.books[book].pages.push({from:pgFrom,to:pgTo});S.books[book].totalPages+=Math.max(0,pgTo-pgFrom+1)}
@@ -1284,12 +1313,13 @@ function finishQuiz(passed,score){
   else{
     const partialPts=Math.max(3,Math.round(chosenMin/15*3));
     S.sessions++;S.pts+=partialPts;
-    const today=new Date();S.lastDate=today.toDateString();S.todayDone=true;
+    const today=new Date();if(S.lastDate){const last=new Date(S.lastDate),yd=new Date(today);yd.setDate(yd.getDate()-1);if(last.toDateString()===yd.toDateString())S.streak++;else if(last.toDateString()!==today.toDateString())S.streak=1}else S.streak=1;S.maxStreak=Math.max(S.maxStreak||0,S.streak);
+    S.lastDate=today.toDateString();S.todayDone=true;
     S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:partialPts,dur:chosenMin,quizScore:score,verified:!!pageAI,summary:pageAI?pageAI.summary:null});
     save();
     timeLeft=DURATION;updateTimer();
-    document.getElementById('t-btn').innerHTML='✅ أنجزت جلسة اليوم';document.getElementById('t-btn').disabled=true;document.getElementById('t-btn').className='btn btn-g';
-    document.getElementById('t-lbl').textContent='عُد غداً';document.getElementById('t-done').style.display='block';
+    document.getElementById('t-btn').innerHTML='🔄 ابدأ جلسة أخرى';document.getElementById('t-btn').disabled=false;document.getElementById('t-btn').className='btn btn-o';document.getElementById('t-btn').onclick=newSession;
+    document.getElementById('t-lbl').textContent='أحسنت! جلسة أخرى؟';document.getElementById('t-done').style.display='block';
     document.getElementById('t-book').disabled=true;document.getElementById('t-chapter').disabled=true;
     document.getElementById('t-pg-from').disabled=true;document.getElementById('t-pg-to').disabled=true;
     refreshAll();showToast('✏️ +'+partialPts+' نقطة — أجب أفضل غداً');checkBadges();
@@ -1303,19 +1333,34 @@ function finishUnverified(){
   const pgTo=parseInt(document.getElementById('t-pg-to').value)||0;
   if(!S.books)S.books={};
   if(!S.books[book])S.books[book]={sessions:0,pages:[],chapters:[],totalPages:0,firstDate:new Date().toISOString()};
-  S.books[book].sessions++;S.books[book].lastDate=new Date().toISOString();
+  S.books[book].sessions++;
+  {const au=document.getElementById('t-author').value.trim();if(au)S.books[book].author=au;if(bookInfo)S.books[book].info={title:bookInfo.title||book,author:bookInfo.author||au,about:bookInfo.about||''}}S.books[book].lastDate=new Date().toISOString();
   if(chapter&&!S.books[book].chapters.includes(chapter))S.books[book].chapters.push(chapter);
   if(pgFrom&&pgTo){S.books[book].pages.push({from:pgFrom,to:pgTo});S.books[book].totalPages+=Math.max(0,pgTo-pgFrom+1)}
   const basePts=Math.max(3,Math.round(chosenMin/15*3));
   S.sessions++;S.pts+=basePts;
-  const today=new Date();S.lastDate=today.toDateString();S.todayDone=true;
+  const today=new Date();if(S.lastDate){const last=new Date(S.lastDate),yd=new Date(today);yd.setDate(yd.getDate()-1);if(last.toDateString()===yd.toDateString())S.streak++;else if(last.toDateString()!==today.toDateString())S.streak=1}else S.streak=1;S.maxStreak=Math.max(S.maxStreak||0,S.streak);
+  S.lastDate=today.toDateString();S.todayDone=true;
   S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:basePts,dur:chosenMin,verified:false,skipped:true});
   save();
   timeLeft=DURATION;updateTimer();
-  document.getElementById('t-btn').innerHTML='✅ أنجزت جلسة اليوم';document.getElementById('t-btn').disabled=true;document.getElementById('t-btn').className='btn btn-g';
-  document.getElementById('t-lbl').textContent='عُد غداً';document.getElementById('t-done').style.display='block';
+  document.getElementById('t-btn').innerHTML='🔄 ابدأ جلسة أخرى';document.getElementById('t-btn').disabled=false;document.getElementById('t-btn').className='btn btn-o';document.getElementById('t-btn').onclick=newSession;
+  document.getElementById('t-lbl').textContent='أحسنت! جلسة أخرى؟';document.getElementById('t-done').style.display='block';
   ['t-book','t-chapter','t-pg-from','t-pg-to'].forEach(i=>document.getElementById(i).disabled=true);
   refreshAll();showToast('✅ +'+basePts+' نقطة (جلسة غير موثّقة)');checkBadges();populateBookHistory();
+}
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='t-book'){const b=S.books&&S.books[e.target.value.trim()];const ta=document.getElementById('t-author');if(b&&b.author&&!ta.value)ta.value=b.author}});
+function newSession(){
+  ['t-book','t-author','t-chapter','t-pg-from','t-pg-to'].forEach(i=>{const el=document.getElementById(i);el.disabled=false});
+  document.getElementById('t-chapter').value='';document.getElementById('t-pg-from').value='';document.getElementById('t-pg-to').value='';
+  document.getElementById('t-done').style.display='none';
+  document.getElementById('t-ai-status').style.display='none';
+  document.getElementById('cover-status').style.display='none';
+  document.querySelectorAll('.dur-btn').forEach(b=>b.disabled=false);
+  captureAt=null;captureState='none';pageAI=null;pageAIPromise=null;
+  timeLeft=DURATION;updateTimer();
+  const b=document.getElementById('t-btn');b.innerHTML='▶ ابدأ جلسة القراءة';b.className='btn btn-g';b.onclick=toggleTimer;
+  document.getElementById('t-lbl').textContent='جاهز للبدء';
 }
 function populateBookHistory(){
   const dl=document.getElementById('book-history');
@@ -1344,8 +1389,8 @@ function awardSession(aiScore){
   S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:earnedPts,dur:chosenMin,verified:!!pageAI,summary:pageAI?pageAI.summary:null,quizScore:aiScore||0});
   save();confetti();
   timeLeft=DURATION;updateTimer();
-  document.getElementById('t-btn').innerHTML='✅ أنجزت جلسة اليوم';document.getElementById('t-btn').disabled=true;document.getElementById('t-btn').className='btn btn-g';
-  document.getElementById('t-lbl').textContent='أحسنت!';
+  document.getElementById('t-btn').innerHTML='🔄 ابدأ جلسة أخرى';document.getElementById('t-btn').disabled=false;document.getElementById('t-btn').className='btn btn-o';document.getElementById('t-btn').onclick=newSession;
+  document.getElementById('t-lbl').textContent='أحسنت! جلسة أخرى؟';
   document.getElementById('t-done').style.display='block';
   document.getElementById('t-book').disabled=true;
   document.getElementById('t-chapter').disabled=true;
@@ -1443,17 +1488,6 @@ function refreshAll(){
   document.getElementById('rp-text').textContent=`${S.sessions%GOAL} من ${GOAL} جلسة`;
   // Week
   renderWeek();renderChart();renderBoard();renderRewards();renderLog();renderProfile();renderStats();renderBadges();renderJournal();
-  // Timer state
-  if(S.todayDone){
-    document.getElementById('t-btn').innerHTML='✅ أنجزت جلسة اليوم';
-    document.getElementById('t-btn').disabled=true;
-    document.getElementById('t-lbl').textContent='عُد غداً';
-    document.getElementById('t-done').style.display='block';
-    document.getElementById('t-book').disabled=true;
-    document.getElementById('t-chapter').disabled=true;
-    document.getElementById('t-pg-from').disabled=true;
-    document.getElementById('t-pg-to').disabled=true;
-  }
   populateBookHistory();
 }
 
