@@ -12,6 +12,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-messaging-compat.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@300;400;500;600;700;800;900&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -358,6 +359,22 @@ input,button,textarea,select{font-family:inherit}
 .stat-box .l{font-size:11px;color:var(--tx3);margin-top:2px}
 .share-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:20px;border:2px solid var(--bdr);background:var(--sf);font-family:var(--ff);font-size:12px;font-weight:600;cursor:pointer}
 
+/* Report / print */
+.kpi-table{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:8px}
+.kpi-table th,.kpi-table td{padding:9px 8px;border-bottom:1px solid var(--bdr);text-align:right;vertical-align:top}
+.kpi-table th{font-family:var(--ff);font-size:11px;color:var(--tx3);font-weight:600}
+.kpi-table td.v{font-family:var(--ff);font-weight:800;color:var(--g1);font-size:15px;white-space:nowrap}
+.kpi-table td.m{font-size:11px;color:var(--tx3)}
+.report-head{display:none}
+@media print{
+  body{background:#fff!important;color:#000!important}
+  .app>*:not(#main),.topbar,.tab-bar,.no-print,.page:not(#pg-adm-report){display:none!important}
+  .screen{position:static!important;overflow:visible!important}
+  #main,.page-scroll,#pg-adm-report{display:block!important;position:static!important;height:auto!important;overflow:visible!important}
+  .card{box-shadow:none!important;border:1px solid #ccc!important;page-break-inside:avoid}
+  .report-head{display:block;margin-bottom:12px}
+  .kpi-table td.v{color:#000!important}
+}
 /* Utility */
 .mt-8{margin-top:8px}.mt-16{margin-top:16px}.mb-10{margin-bottom:10px}.mb-16{margin-bottom:16px}
 .txt-c{text-align:center}
@@ -379,21 +396,21 @@ input,button,textarea,select{font-family:inherit}
 <div class="screen hidden" id="login">
   <div class="login-header">
     <div class="login-logo">اقرأ واكسب</div>
-    <div class="login-tagline">سجّل دخولك وابدأ رحلة القراءة</div>
+    <div class="login-tagline" data-ar="سجّل دخولك وابدأ رحلة القراءة">سجّل دخولك وابدأ رحلة القراءة</div>
   </div>
   <div class="login-body">
     <div class="login-tabs">
-      <button class="login-tab active" id="tab-in" onclick="switchLoginTab('in')">دخول</button>
-      <button class="login-tab" id="tab-up" onclick="switchLoginTab('up')">حساب جديد</button>
+      <button class="login-tab active" id="tab-in" onclick="switchLoginTab('in')" data-ar="دخول">دخول</button>
+      <button class="login-tab" id="tab-up" onclick="switchLoginTab('up')" data-ar="حساب جديد">حساب جديد</button>
     </div>
     <div id="login-in">
-      <div class="field"><label>البريد الإلكتروني</label><input id="in-email" type="email" placeholder="ahmed@company.ae" dir="ltr" autocomplete="email"></div>
-      <div class="field"><label>كلمة المرور</label><input id="in-pass" type="password" placeholder="••••••••" dir="ltr" autocomplete="current-password"></div>
-      <button class="btn btn-g" id="btn-in" onclick="doLogin()">دخول</button>
+      <div class="field"><label data-ar="البريد الإلكتروني">البريد الإلكتروني</label><input id="in-email" type="email" placeholder="ahmed@company.ae" dir="ltr" autocomplete="email"></div>
+      <div class="field"><label data-ar="كلمة المرور">كلمة المرور</label><input id="in-pass" type="password" placeholder="••••••••" dir="ltr" autocomplete="current-password"></div>
+      <button class="btn btn-g" id="btn-in" onclick="doLogin()" data-ar="دخول">دخول</button>
       <div style="text-align:center;margin-top:12px"><button class="card-link" onclick="resetPass()">نسيت كلمة المرور؟</button></div>
     </div>
     <div id="login-up" style="display:none">
-      <div class="field"><label>نوع الحساب</label>
+      <div class="field"><label data-ar="نوع الحساب">نوع الحساب</label>
         <select id="up-kind" onchange="onKindChange()">
           <option value="org">موظف — بريد مؤسسي</option>
           <option value="school-join">طالب — لديّ كود المدرسة</option>
@@ -402,11 +419,12 @@ input,button,textarea,select{font-family:inherit}
           <option value="solo">فرد مستقل — بدون مؤسسة</option>
         </select>
       </div>
-      <div class="field"><label>اسمك</label><input id="up-name" placeholder="مثال: أحمد المنصوري" autocomplete="name"></div>
+      <div class="field"><label data-ar="اسمك">اسمك</label><input id="up-name" placeholder="مثال: أحمد المنصوري" autocomplete="name"></div>
       <div class="field"><label>البريد الإلكتروني</label><input id="up-email" type="email" placeholder="ahmed@company.ae" dir="ltr" autocomplete="email"></div>
       <div class="field"><label>كلمة المرور (6 أحرف على الأقل)</label><input id="up-pass" type="password" placeholder="••••••••" dir="ltr" autocomplete="new-password"></div>
       <div class="field" id="f-code" style="display:none"><label id="f-code-lbl">كود العائلة</label><input id="up-code" placeholder="مثال: QR7K2M" dir="ltr" style="text-transform:uppercase;letter-spacing:2px;text-align:center"></div>
       <div class="field" id="f-fam" style="display:none"><label>اسم العائلة</label><input id="up-fam" placeholder="مثال: عائلة المنصوري"></div>
+      <div class="field" id="f-dept"><label data-i18n="dept">الإدارة / القسم</label><input id="up-dept" placeholder="مثال: إدارة الموارد البشرية"></div>
       <div id="up-hint" style="font-size:12px;color:var(--tx3);margin:-6px 0 16px;line-height:1.7">استخدم بريدك المؤسسي — سيتم ربطك بمؤسستك تلقائياً.</div>
       <button class="btn btn-g" id="btn-up" onclick="doSignup()">إنشاء الحساب</button>
     </div>
@@ -448,28 +466,28 @@ input,button,textarea,select{font-family:inherit}
     <!-- HOME -->
     <div class="page active" id="pg-home">
       <div class="hero-stats">
-        <div class="hero-stat"><div class="hs-val green" id="h-sessions">0</div><div class="hs-lbl">جلسة</div></div>
-        <div class="hero-stat"><div class="hs-val gold" id="h-streak">0</div><div class="hs-lbl">يوم متواصل</div></div>
-        <div class="hero-stat"><div class="hs-val teal" id="h-hours">0</div><div class="hs-lbl">ساعة قراءة</div></div>
+        <div class="hero-stat"><div class="hs-val green" id="h-sessions">0</div><div class="hs-lbl" data-ar="جلسة">جلسة</div></div>
+        <div class="hero-stat"><div class="hs-val gold" id="h-streak">0</div><div class="hs-lbl" data-ar="يوم متواصل">يوم متواصل</div></div>
+        <div class="hero-stat"><div class="hs-val teal" id="h-hours">0</div><div class="hs-lbl" data-ar="ساعة قراءة">ساعة قراءة</div></div>
       </div>
 
       <div class="card">
-        <div class="card-head"><div class="card-title">🎯 هدفي اليومي</div><div class="card-link" onclick="setGoal()">تعديل</div></div>
+        <div class="card-head"><div class="card-title" data-ar="🎯 هدفي اليومي">🎯 هدفي اليومي</div><div class="card-link" onclick="setGoal()">تعديل</div></div>
         <div id="goal-body"></div>
       </div>
 
       <div class="card">
-        <div class="card-head"><div class="card-title">إحصائياتي</div></div>
+        <div class="card-head"><div class="card-title" data-ar="إحصائياتي">إحصائياتي</div></div>
         <div class="stat-2">
-          <div class="stat-box"><div class="v" id="st-wk-min">0</div><div class="l">دقيقة هذا الأسبوع</div></div>
-          <div class="stat-box"><div class="v" id="st-wk-pg">0</div><div class="l">صفحة هذا الأسبوع</div></div>
-          <div class="stat-box"><div class="v" id="st-mo-min">0</div><div class="l">دقيقة هذا الشهر</div></div>
-          <div class="stat-box"><div class="v" id="st-mo-ses">0</div><div class="l">جلسة هذا الشهر</div></div>
+          <div class="stat-box"><div class="v" id="st-wk-min">0</div><div class="l" data-ar="دقيقة هذا الأسبوع">دقيقة هذا الأسبوع</div></div>
+          <div class="stat-box"><div class="v" id="st-wk-pg">0</div><div class="l" data-ar="صفحة هذا الأسبوع">صفحة هذا الأسبوع</div></div>
+          <div class="stat-box"><div class="v" id="st-mo-min">0</div><div class="l" data-ar="دقيقة هذا الشهر">دقيقة هذا الشهر</div></div>
+          <div class="stat-box"><div class="v" id="st-mo-ses">0</div><div class="l" data-ar="جلسة هذا الشهر">جلسة هذا الشهر</div></div>
         </div>
       </div>
 
       <div class="card">
-        <div class="card-head"><div class="card-title">التقدّم نحو المكافأة</div><div class="card-link" onclick="showPage('rewards')">المتجر ←</div></div>
+        <div class="card-head"><div class="card-title" data-ar="التقدّم نحو المكافأة">التقدّم نحو المكافأة</div><div class="card-link" onclick="showPage('rewards')">المتجر ←</div></div>
         <div class="reward-prog">
           <div class="prog-ring">
             <svg viewBox="0 0 56 56"><circle class="tk" cx="28" cy="28" r="24"/><circle class="pg" id="rp-circle" cx="28" cy="28" r="24" stroke-dasharray="150.8" stroke-dashoffset="150.8"/></svg>
@@ -578,9 +596,9 @@ input,button,textarea,select{font-family:inherit}
         <div style="font-family:var(--ff);font-size:40px;font-weight:900" id="rw-bal">0</div>
         <div style="font-size:12px;opacity:.8">نقطة</div>
       </div>
-      <div class="card-title mb-10 mt-16">طلباتي</div>
+      <div class="card-title mb-10 mt-16" data-ar="طلباتي">طلباتي</div>
       <div id="my-redeem"></div>
-      <div class="card-title mb-10 mt-16">المكافآت المتاحة</div>
+      <div class="card-title mb-10 mt-16" data-ar="المكافآت المتاحة">المكافآت المتاحة</div>
       <div id="rw-list"></div>
     </div>
 
@@ -607,20 +625,40 @@ input,button,textarea,select{font-family:inherit}
         </div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">🏅 الشارات</div><div class="card-link" id="badge-count">0 / 0</div></div>
+        <div class="card-head"><div class="card-title" data-ar="🏅 الشارات">🏅 الشارات</div><div class="card-link" id="badge-count">0 / 0</div></div>
         <div class="badge-grid" id="badge-grid"></div>
       </div>
       <div class="card">
-        <div class="card-head"><div class="card-title">✍️ يومياتي</div></div>
+        <div class="card-head"><div class="card-title" data-ar="✍️ يومياتي">✍️ يومياتي</div></div>
         <div id="journal-list"></div>
       </div>
       <div class="card txt-c"><button class="share-btn" onclick="shareProfile()">📤 شارك ملفي القرائي</button></div>
+      <div class="setting-row" onclick="editDept()">
+        <div class="setting-icon" style="background:var(--ok-l)">🏛️</div>
+        <div class="setting-label"><span data-i18n="dept">الإدارة / القسم</span>: <b id="pf-dept">—</b></div>
+        <div class="setting-arrow">‹</div>
+      </div>
       <div class="setting-row" onclick="cycleLevel()">
         <div class="setting-icon" style="background:var(--accent-l)">🎚️</div>
         <div class="setting-label">مستوى الأسئلة: <b id="pf-level">متوسط</b></div>
         <div class="setting-arrow">‹</div>
       </div>
-      <div class="setting-row" onclick="showToast('قريباً — إعدادات الإشعارات')">
+      <div class="setting-row" onclick="toggleLang()">
+        <div class="setting-icon" style="background:var(--accent-l)">🌐</div>
+        <div class="setting-label"><span data-i18n="language">اللغة</span>: <b id="pf-lang">العربية</b></div>
+        <div class="setting-arrow">‹</div>
+      </div>
+      <div class="setting-row" onclick="enablePush()">
+        <div class="setting-icon" style="background:var(--ok-l)">🔔</div>
+        <div class="setting-label"><span data-i18n="notif">الإشعارات</span>: <b id="pf-push">—</b></div>
+        <div class="setting-arrow">‹</div>
+      </div>
+      <div class="setting-row" onclick="openHelp()">
+        <div class="setting-icon" style="background:var(--accent-l)">❓</div>
+        <div class="setting-label" data-i18n="help">المساعدة</div>
+        <div class="setting-arrow">‹</div>
+      </div>
+      <div class="setting-row" style="display:none" onclick="showToast('قريباً — إعدادات الإشعارات')">
         <div class="setting-icon" style="background:var(--ok-l)">🔔</div>
         <div class="setting-label">الإشعارات</div>
         <div class="setting-arrow">‹</div>
@@ -698,6 +736,12 @@ input,button,textarea,select{font-family:inherit}
       </div>
     </div>
 
+    <div class="page" id="pg-adm-report">
+      <div class="card" id="report-card">
+        <div class="card-head no-print"><div class="card-title" data-i18n="kpi_title">مؤشرات الأداء المؤسسية</div><button class="btn-xs btn-g" onclick="printReport()">🖨️ <span data-i18n="print">طباعة</span></button></div>
+        <div id="report-body"></div>
+      </div>
+    </div>
     <div class="page" id="pg-adm-profile">
       <div class="card">
         <div class="profile-header">
@@ -714,6 +758,9 @@ input,button,textarea,select{font-family:inherit}
           <div class="setting-arrow">‹</div>
         </div>
       </div>
+      <div class="setting-row" onclick="toggleLang()"><div class="setting-icon" style="background:var(--accent-l)">🌐</div><div class="setting-label"><span data-i18n="language">اللغة</span></div><div class="setting-arrow">‹</div></div>
+      <div class="setting-row" onclick="enablePush()"><div class="setting-icon" style="background:var(--ok-l)">🔔</div><div class="setting-label"><span data-i18n="notif">الإشعارات</span></div><div class="setting-arrow">‹</div></div>
+      <div class="setting-row" onclick="openHelp()"><div class="setting-icon" style="background:var(--accent-l)">❓</div><div class="setting-label" data-i18n="help">المساعدة</div><div class="setting-arrow">‹</div></div>
       <div class="setting-row" onclick="logout()">
         <div class="setting-icon" style="background:var(--err-l)">🚪</div>
         <div class="setting-label" style="color:var(--err)">تسجيل الخروج</div>
@@ -746,6 +793,9 @@ input,button,textarea,select{font-family:inherit}
           <div class="profile-role">مدير المنصة</div>
         </div>
       </div>
+      <div class="setting-row" onclick="toggleLang()"><div class="setting-icon" style="background:var(--accent-l)">🌐</div><div class="setting-label"><span data-i18n="language">اللغة</span></div><div class="setting-arrow">‹</div></div>
+      <div class="setting-row" onclick="enablePush()"><div class="setting-icon" style="background:var(--ok-l)">🔔</div><div class="setting-label"><span data-i18n="notif">الإشعارات</span></div><div class="setting-arrow">‹</div></div>
+      <div class="setting-row" onclick="openHelp()"><div class="setting-icon" style="background:var(--accent-l)">❓</div><div class="setting-label" data-i18n="help">المساعدة</div><div class="setting-arrow">‹</div></div>
       <div class="setting-row" onclick="logout()">
         <div class="setting-icon" style="background:var(--err-l)">🚪</div>
         <div class="setting-label" style="color:var(--err)">تسجيل الخروج</div>
@@ -769,6 +819,14 @@ input,button,textarea,select{font-family:inherit}
     <img id="cap-preview" style="display:none;max-width:100%;max-height:220px;border-radius:var(--r-sm);margin-bottom:12px;border:2px solid var(--bdr)">
     <button class="btn btn-g" id="cap-btn" onclick="document.getElementById('cap-input').click()">📷 التقط صورة الصفحة</button>
     <button class="btn btn-o mt-8" onclick="skipCapture()">تخطّي (نقاط أساسية فقط)</button>
+  </div>
+</div>
+
+<div class="modal-bg" id="help-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-sheet" style="max-height:85vh;overflow-y:auto">
+    <div style="font-family:var(--ff);font-size:17px;font-weight:800;margin-bottom:10px" id="help-title">❓ المساعدة</div>
+    <div id="help-body" style="font-size:13px;line-height:1.9;color:var(--tx2)"></div>
+    <button class="btn btn-o mt-16" onclick="document.getElementById('help-modal').classList.remove('open')">✕</button>
   </div>
 </div>
 
@@ -834,6 +892,85 @@ function applyCustomDur(){
   updateTimer();
 }
 
+// ======== PUSH NOTIFICATIONS ========
+async function enablePush(){
+  try{
+    if(!('Notification' in window)||!('serviceWorker' in navigator)){showToast(LANG==='en'?'Notifications not supported on this browser':'المتصفح لا يدعم الإشعارات');return}
+    const isIOS=/iPhone|iPad/.test(navigator.userAgent);const standalone=window.navigator.standalone===true||matchMedia('(display-mode: standalone)').matches;
+    if(isIOS&&!standalone){showToast(LANG==='en'?'On iPhone: add the app to your Home Screen first':'على iPhone: أضِف التطبيق إلى الشاشة الرئيسية أولاً');return}
+    const perm=await Notification.requestPermission();
+    if(perm!=='granted'){showToast(LANG==='en'?'Permission denied':'لم يُسمح بالإشعارات');return}
+    const cfg=await db.collection('config').doc('web').get();const vapid=cfg.exists&&cfg.data().vapidKey;
+    if(!vapid){showToast(LANG==='en'?'Push not configured yet (VAPID key)':'الإشعارات غير مهيأة بعد (مفتاح VAPID)');return}
+    const reg=await navigator.serviceWorker.ready;
+    const token=await firebase.messaging().getToken({vapidKey:vapid,serviceWorkerRegistration:reg});
+    if(!token)throw new Error('no token');
+    S.fcmToken=token;save();renderProfile();
+    showToast(LANG==='en'?'🔔 Notifications enabled':'🔔 تم تفعيل الإشعارات');
+  }catch(e){console.error(e);showToast('⚠️ '+(e.message||'تعذّر التفعيل'))}
+}
+try{firebase.messaging().onMessage(p=>{const n=p.notification||{};showToast('🔔 '+(n.title||'')+(n.body?' — '+n.body:''));pollUnread()})}catch(e){}
+async function pushTo(target,title,text,link){
+  try{const tk=await auth.currentUser.getIdToken();await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({...target,title,text,link})})}catch(e){console.warn('push',e)}
+}
+
+// ======== HELP ========
+const HELP={ar:[
+ ['كيف أبدأ جلسة قراءة؟','من تبويب «اقرأ»: اكتب اسم الكتاب والمؤلف (أو صوّر الغلاف)، حدّد نطاق الصفحات (من – إلى)، اختر المدة، ثم اضغط ابدأ. أبقِ الهاتف قربك.'],
+ ['ما هي «لحظة التحقق»؟','في وقت عشوائي أثناء الجلسة سيطلب التطبيق تصوير الصفحة التي تقرأها بحيث يظهر رقمها. يتحقق المساعد أن الرقم ضمن النطاق الذي حدّدته. إن كان الكتاب معروفاً يكفي تحقق واحد، وإلا ثلاثة.'],
+ ['كيف تُحسب النقاط؟','كل جلسة موثّقة تمنح نقاطاً حسب المدة ونتيجة أسئلة الفهم. تخطّي التحقق يمنح النقاط الأساسية فقط. ختم كتاب يمنح 25 نقطة، وتشجيع شريكك 5 نقاط.'],
+ ['كيف أستبدل مكافأة؟','من «المكافآت» اضغط استبدال. سيظهر لك رمز استلام من 6 أرقام في «طلباتي»؛ أعطه للمدير عند الاستلام.'],
+ ['ما هو شريك القراءة؟','زميل تختاره من مؤسستك لتتابعا جلسات بعضكما وتتراسلا داخل التطبيق.'],
+ ['لماذا لا تصلني الإشعارات؟','فعّلها من الإعدادات ← الإشعارات. على iPhone يجب أولاً إضافة التطبيق إلى الشاشة الرئيسية (مشاركة ← إضافة إلى الشاشة الرئيسية).'],
+ ['كيف أغيّر اللغة؟','الإعدادات ← اللغة.'],
+ ['تواصل معنا','Readingclinicuae@gmail.com — عيادة القراءة، أبوظبي'],
+],en:[
+ ['How do I start a session?','From “Read”: enter the book title and author (or photograph the cover), set the page range (from – to), pick a duration and press start. Keep your phone nearby.'],
+ ['What is a “verification moment”?','At a random point during the session the app asks you to photograph the page you are reading so the page number is visible. The assistant checks it is inside your declared range. Known books need one check; unknown books need three.'],
+ ['How are points calculated?','Each verified session earns points based on duration and your comprehension quiz. Skipping verification earns base points only. Finishing a book earns 25; encouraging your partner earns 5.'],
+ ['How do I redeem a reward?','In “Rewards” tap redeem. A 6-digit pickup code appears under “My requests”; give it to your admin when collecting.'],
+ ['What is a reading partner?','A colleague you choose from your organization to follow each other’s sessions and chat in-app.'],
+ ['Why don’t I get notifications?','Enable them in Settings → Notifications. On iPhone, first add the app to your Home Screen (Share → Add to Home Screen).'],
+ ['How do I change the language?','Settings → Language.'],
+ ['Contact us','Readingclinicuae@gmail.com — Reading Clinic, Abu Dhabi'],
+]};
+function openHelp(){
+  const items=HELP[LANG]||HELP.ar;
+  document.getElementById('help-title').textContent=(LANG==='en'?'❓ Help':'❓ المساعدة');
+  document.getElementById('help-body').innerHTML=items.map(([q,a])=>`<div style="margin-bottom:12px"><div style="font-family:var(--ff);font-weight:700;color:var(--tx)">${q}</div><div>${a}</div></div>`).join('');
+  document.getElementById('help-modal').classList.add('open');
+}
+
+// ======== I18N ========
+let LANG='ar';
+const I18N={
+  ar:{},
+  en:{
+    // nav
+    'الرئيسية':'Home','اقرأ':'Read','كتبي':'Books','شريكي':'Partner','المكافآت':'Rewards','لوحة التحكم':'Dashboard','الموظفون':'Employees','الطلاب':'Students','العائلة':'Family','القرّاء':'Readers','التقارير':'Reports','الإعدادات':'Settings','المؤسسات':'Organizations','الكتالوج العام':'Public catalog',
+    // page titles
+    'جلسة القراءة':'Reading session','لوحة المتصدرين':'Leaderboard','سجلّي':'My log','ملفي':'My profile','شريك القراءة':'Reading partner','مؤشرات الأداء':'KPI report','أفراد العائلة':'Family members','إعدادات المنصة':'Platform settings','المكافآت العامة':'Public rewards',
+    // keys
+    dept:'Department',kpi_title:'Institutional Performance Indicators',print:'Print',kpi_ind:'Indicator',kpi_how:'How it is measured',kpi_val:'Value',
+    k1:'Reading employees',k1m:'Active registered users (≥1 session)',k2:'Institutional reading hours',k2m:'Total session minutes',k3:'Continuity rate',k3m:'Monthly retention (active last month who are active this month)',k4:'Reading comprehension',k4m:'Average AI quiz score on verified sessions',k5:'Books completed',k5m:'Completed-book log per employee',k6:'Performance by department',k6m:'Institutional ranking',
+    h:'h',quizzes:'quizzes',readers:'Readers',sessions:'Sessions',minutes:'Minutes',finished:'Completed',points:'Points',no_dept:'(no department)',no_data:'No data yet',report_note:'Generated by Read & Earn — a Reading Clinic (عيادة القراءة) product.',
+    help:'Help',language:'Language',notif:'Notifications',
+    ...{"سجّل دخولك وابدأ رحلة القراءة": "Sign in and start your reading journey", "دخول": "Sign in", "حساب جديد": "Sign up", "البريد الإلكتروني": "Email", "كلمة المرور": "Password", "اسمك": "Your name", "نوع الحساب": "Account type", "إحصائياتي": "My stats", "🎯 هدفي اليومي": "🎯 Daily goal", "التقدّم نحو المكافأة": "Progress to reward", "🏅 الشارات": "🏅 Badges", "✍️ يومياتي": "✍️ My journal", "جلسة": "Sessions", "يوم متواصل": "Day streak", "ساعة قراءة": "Hours read", "دقيقة هذا الأسبوع": "Minutes this week", "صفحة هذا الأسبوع": "Pages this week", "دقيقة هذا الشهر": "Minutes this month", "جلسة هذا الشهر": "Sessions this month", "مدة الجلسة": "Session length", "طلباتي": "My requests", "المكافآت المتاحة": "Available rewards", "▶ ابدأ جلسة القراءة": "▶ Start reading session", "جاهز للبدء": "Ready to start"}
+  }
+};
+function t(k){if(LANG==='en'&&I18N.en[k])return I18N.en[k];if(LANG==='ar'&&I18N.en[k]&&!/[\u0600-\u06FF]/.test(k)){const ar=AR_KEYS[k];return ar||k}return k}
+const AR_KEYS={dept:'الإدارة / القسم',kpi_title:'مؤشرات الأداء المؤسسية',print:'طباعة',kpi_ind:'المؤشر المطلوب',kpi_how:'كيف يقيسه «اقرأ واكسب»',kpi_val:'القيمة',
+  k1:'عدد الموظفين القارئين',k1m:'عدد المسجّلين النشطين (جلسة واحدة على الأقل)',k2:'ساعات القراءة المؤسسية',k2m:'إجمالي دقائق الجلسات',k3:'معدل الاستمرارية',k3m:'نسبة الاحتفاظ الشهرية (نشطو الشهر الماضي الذين استمروا هذا الشهر)',k4:'الفهم القرائي',k4m:'متوسط نتائج أسئلة الذكاء الاصطناعي في الجلسات الموثّقة',k5:'عدد الكتب المُنجزة',k5m:'سجل الختمات لكل موظف',k6:'مقارنة الأداء بين الإدارات',k6m:'لوحة الترتيب المؤسسية',
+  h:'ساعة',quizzes:'اختبار',readers:'القرّاء',sessions:'الجلسات',minutes:'الدقائق',finished:'الختمات',points:'النقاط',no_dept:'(بدون إدارة)',no_data:'لا توجد بيانات بعد',report_note:'أُنشئ بواسطة «اقرأ واكسب» — من منتجات عيادة القراءة.',
+  help:'المساعدة',language:'اللغة',notif:'الإشعارات'};
+function applyLang(){
+  document.documentElement.lang=LANG;document.documentElement.dir=LANG==='ar'?'rtl':'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.getAttribute('data-i18n');if(!el.dataset.ar)el.dataset.ar=el.textContent;el.textContent=LANG==='en'?(I18N.en[k]||el.dataset.ar):el.dataset.ar});
+  document.querySelectorAll('[data-ar]').forEach(el=>{if(el.hasAttribute('data-i18n'))return;el.textContent=LANG==='en'?(I18N.en[el.dataset.ar]||el.dataset.ar):el.dataset.ar});
+}
+function setLang(l){LANG=l;S.lang=l;save();applyLang();if(document.getElementById('main').classList.contains('hidden'))return;initMain()}
+function toggleLang(){setLang(LANG==='ar'?'en':'ar')}
+
 // ======== FIREBASE ========
 const firebaseConfig = {
   apiKey: "AIzaSyC1GMBmBpFkT441mYmKBSe_tEjBZUrqGJU",
@@ -861,7 +998,7 @@ const AVATARS=['👩‍💼','👨‍💻','👩‍🏫','👨‍🔬','👩‍�
 const AV_BGS=['#F0E8F5','#FFF3DC','#F5E8F0','#FFF0E8','#E8E8F5'];
 function avOf(u){const n=(u.name||'?').charCodeAt(0);return{av:AVATARS[n%AVATARS.length],bg:AV_BGS[n%AV_BGS.length]}}
 
-function defaultState(){return{name:'',email:'',orgId:'',orgName:'',orgType:'org',role:'user',sessions:0,pts:0,streak:0,lastDate:null,todayDone:false,log:[],redeemed:[],summaries:[],partnerId:null,partnerName:'',partnerRatings:[],books:{},createdAt:new Date().toISOString()}}
+function defaultState(){return{name:'',email:'',orgId:'',orgName:'',orgType:'org',role:'user',dept:'',lang:'ar',sessions:0,pts:0,streak:0,lastDate:null,todayDone:false,log:[],redeemed:[],summaries:[],partnerId:null,partnerName:'',partnerRatings:[],books:{},createdAt:new Date().toISOString()}}
 
 // Load this user's document from Firestore
 async function load(){
@@ -918,6 +1055,7 @@ auth.onAuthStateChanged(async user=>{
       await load();
       if(!S.name){S.name=user.displayName||'';S.email=user.email;save()}
       if(S.role!=='super')await loadRewards();
+      LANG=S.lang||'ar';applyLang();
       mode=S.role==='super'?'super':S.role==='admin'?(S.orgType==='family'?'emp':'admin'):'emp';
       hide('splash');hide('login');hide('verify');show('main');initMain();
     }catch(e){console.error(e);showToast('⚠️ خطأ في تحميل البيانات');hide('splash');show('login')}
@@ -950,6 +1088,7 @@ function onKindChange(){
   document.getElementById('f-code').style.display=(k==='family-join'||k==='school-join')?'block':'none';
   document.getElementById('f-code-lbl').textContent=k==='school-join'?'كود المدرسة':'كود العائلة';
   document.getElementById('f-fam').style.display=k==='family-new'?'block':'none';
+  document.getElementById('f-dept').style.display=(k==='org'||k==='school-join')?'block':'none';
   const H={org:'استخدم بريدك المؤسسي — سيتم ربطك بمؤسستك تلقائياً.',
     'school-join':'اطلب كود المدرسة من معلمك أو أمين المكتبة.',
     'family-join':'اطلب الكود من وليّ الأمر. يمكن للأطفال استخدام بريد وليّ الأمر مع إضافة +اسم (مثال: ahmed+sara@gmail.com).',
@@ -989,7 +1128,8 @@ async function doSignup(){
       const snap=await ref.get();org={id:ref.id,...snap.data()};role='admin';
     }
     await cred.user.updateProfile({displayName:n});
-    const st={...defaultState(),name:n,email:e,orgId:org.id,orgName:org.name,orgType:org.type||'org',role,...extra};
+    const dept=document.getElementById('up-dept').value.trim();
+    const st={...defaultState(),name:n,email:e,orgId:org.id,orgName:org.name,orgType:org.type||'org',role,dept,...extra};
     const {todayDone,...data}=st;
     try{await db.collection('users').doc(cred.user.uid).set(data)}
     catch(werr){console.error(werr);await cred.user.delete();showToast('⚠️ تعذّر إنشاء الملف الشخصي — أعد المحاولة');b.disabled=false;b.textContent='إنشاء الحساب';return}
@@ -1029,13 +1169,14 @@ const ADM_TABS=[
   {id:'adm-home',icon:'📊',label:'لوحة التحكم'},
   {id:'adm-emp',icon:'👥',label:'الموظفون'},
   {id:'adm-rw',icon:'🎁',label:'المكافآت'},
+  {id:'adm-report',icon:'📈',label:'التقارير'},
   {id:'adm-profile',icon:'⚙️',label:'الإعدادات'},
 ];
 
 function initMain(){
   const tabs=mode==='super'?SUP_TABS:mode==='admin'?ADM_TABS.map(t=>t.id==='adm-emp'?{...t,icon:TL().icon,label:TL().tab}:t):EMP_TABS;
   const bar=document.getElementById('tab-bar');
-  bar.innerHTML=tabs.map((t,i)=>`<button class="tab-item${i===0?' active':''}" onclick="showPage('${t.id}')" data-pg="${t.id}"><div class="tab-icon">${t.icon}</div><div class="tab-label">${t.label}</div></button>`).join('');
+  bar.innerHTML=tabs.map((tb,i)=>`<button class="tab-item${i===0?' active':''}" onclick="showPage('${tb.id}')" data-pg="${tb.id}"><div class="tab-icon">${tb.icon}</div><div class="tab-label">${t(tb.label)}</div></button>`).join('');
   document.getElementById('topbar-points').style.display=mode==='emp'?'flex':'none';
   const sw=document.getElementById('mode-switch');
   if(S.role==='admin'){sw.style.display='flex';sw.textContent=mode==='emp'?TL().icon+' لوحة '+(S.orgType==='family'?'العائلة':S.orgType==='school'?'المدرسة':'الإدارة'):'📖 وضع القارئ'}
@@ -1045,20 +1186,21 @@ function initMain(){
 }
 function switchMode(){if(S.role!=='admin')return;mode=mode==='emp'?'admin':'emp';initMain();showToast(mode==='emp'?'📖 وضع القارئ':'لوحة الإدارة')}
 
-const PAGE_TITLES={'home':'الرئيسية','timer':'جلسة القراءة','books':'كتبي','partner':'شريك القراءة','rewards':'المكافآت','log':'سجلّي','board':'الترتيب','profile':'حسابي','adm-home':'لوحة التحكم','adm-emp':'الموظفون','adm-emp-fam':'أفراد العائلة','adm-rw':'المكافآت','adm-profile':'الإعدادات','sup-orgs':'المؤسسات','sup-profile':'إعدادات المنصة'};
+const PAGE_TITLES={'home':'الرئيسية','timer':'جلسة القراءة','books':'كتبي','partner':'شريك القراءة','rewards':'المكافآت','log':'سجلّي','board':'الترتيب','profile':'حسابي','adm-home':'لوحة التحكم','adm-emp':'الموظفون','adm-emp-fam':'أفراد العائلة','adm-rw':'المكافآت','adm-profile':'الإعدادات','adm-report':'مؤشرات الأداء','sup-orgs':'المؤسسات','sup-profile':'إعدادات المنصة'};
 
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   const pg=document.getElementById('pg-'+id);
   if(pg)pg.classList.add('active');
   document.querySelectorAll('.tab-item').forEach(b=>b.classList.toggle('active',b.dataset.pg===id));
-  document.getElementById('topbar-title').textContent=id==='adm-emp'?TL().members:id==='sup-rw'?'المكافآت العامة':(PAGE_TITLES[id]||'');
+  document.getElementById('topbar-title').textContent=t(id==='adm-emp'?TL().members:id==='sup-rw'?'المكافآت العامة':(PAGE_TITLES[id]||''));
   document.getElementById('main-scroll').scrollTop=0;
   if(id==='books')renderBooks();
   if(id==='partner')renderPartner();
   if(id==='adm-home')renderAdminHome();
   if(id==='adm-emp')renderAdminEmps();
   if(id==='adm-rw')renderAdminRewards();
+  if(id==='adm-report')renderReport();
   if(id==='sup-orgs')renderSuperOrgs();
   if(id==='adm-profile')renderAdminProfile();
   if(id==='sup-profile')document.getElementById('spf-name').textContent=S.name;
@@ -1234,6 +1376,7 @@ async function onCover(inp){
     st.textContent=`✅ ${j.title||''}${j.author?' — '+j.author:''}${j.found?' · 🌐 معروف (تحقق واحد)':' · غير متاح على الإنترنت (3 تحققات)'}`;
   }catch(e){console.error(e);st.textContent='⚠️ تعذّر التعرف على الغلاف: '+e.message}
 }
+function editDept(){const v=prompt(t('dept'),S.dept||'');if(v===null)return;S.dept=v.trim();save();document.getElementById('pf-dept').textContent=S.dept||'—'}
 function cycleLevel(){const L=['مبتدئ','متوسط','متقدم'];S.level=L[(L.indexOf(S.level||'متوسط')+1)%3];save();document.getElementById('pf-level').textContent=S.level;showToast('مستوى الأسئلة: '+S.level)}
 
 function stopT(){
@@ -1532,7 +1675,7 @@ const BADGES=[
   {id:'streak7',ic:'🔥',lbl:'7 أيام متواصلة',test:s=>s.streak>=7||s.maxStreak>=7},
   {id:'streak30',ic:'🌟',lbl:'30 يوماً متواصلة',test:s=>s.streak>=30||s.maxStreak>=30},
   {id:'pages100w',ic:'📄',lbl:'100 صفحة في أسبوع',test:s=>weekPages(s)>=100},
-  {id:'books5',ic:'📚',lbl:'5 كتب',test:s=>Object.keys(s.books||{}).length>=5},
+  {id:'books5',ic:'📚',lbl:'5 ختمات',test:s=>Object.values(s.books||{}).filter(b=>b.finished).length>=5},
   {id:'quiz10',ic:'🎯',lbl:'10 إجابات صحيحة متتالية',test:s=>(s.quizStreak||0)>=10},
   {id:'ses50',ic:'🏆',lbl:'50 جلسة',test:s=>s.sessions>=50},
   {id:'hours10',ic:'⏳',lbl:'10 ساعات قراءة',test:s=>totalMin(s)>=600},
@@ -1543,7 +1686,7 @@ function checkBadges(){
   if(!S.badges)S.badges={};
   let fresh=[];
   BADGES.forEach(b=>{if(!S.badges[b.id]&&b.test(S)){S.badges[b.id]=new Date().toISOString();fresh.push(b)}});
-  if(fresh.length){save();setTimeout(()=>{confetti();showToast('🏅 شارة جديدة: '+fresh.map(b=>b.lbl).join(' · '))},600)}
+  if(fresh.length){save();setTimeout(()=>{confetti();showToast('🏅 شارة جديدة: '+fresh.map(b=>b.lbl).join(' · '));notifyLocal('🏅 شارة جديدة',fresh.map(b=>b.lbl).join(' · '))},600)}
 }
 function renderBadges(){
   const g=document.getElementById('badge-grid');if(!g)return;
@@ -1707,6 +1850,9 @@ function renderProfile(){
   document.getElementById('pf-name').textContent=S.name||'—';
   document.getElementById('pf-role').textContent=S.orgType==='individual'?'قارئ مستقل':(S.orgName||'—');
   const lv=document.getElementById('pf-level');if(lv)lv.textContent=S.level||'متوسط';
+  const dp=document.getElementById('pf-dept');if(dp)dp.textContent=S.dept||'—';
+  const pl=document.getElementById('pf-lang');if(pl)pl.textContent=LANG==='en'?'English':'العربية';
+  const pp=document.getElementById('pf-push');if(pp)pp.textContent=S.fcmToken?(LANG==='en'?'On':'مفعّلة'):(LANG==='en'?'Off — tap to enable':'غير مفعّلة — اضغط للتفعيل');
   document.getElementById('pf-s').textContent=S.sessions;
   document.getElementById('pf-h').textContent=calcHours();
   const books=[...new Set(S.log.map(l=>l.book))];
@@ -1740,7 +1886,7 @@ async function renderAdminEmps(filter=''){
   document.querySelector('#pg-adm-emp .card-title').textContent=`${TL().members} (${USERS_CACHE.length})`;
   const weekAgo=new Date();weekAgo.setDate(weekAgo.getDate()-7);
   const list=filter?USERS_CACHE.filter(e=>(e.name||'').includes(filter)):USERS_CACHE;
-  document.getElementById('adm-emp-list').innerHTML=list.map(e=>{const a=avOf(e);const active=e.lastDate&&new Date(e.lastDate)>=weekAgo;return`<div class="emp-row"><div class="emp-avatar" style="background:${a.bg}">${a.av}</div><div class="emp-info"><div class="emp-name">${e.name}</div><div class="emp-meta">${e.sessions||0} جلسة · سلسلة ${e.streak||0} يوم</div></div><div class="emp-badge ${active?'active':'inactive'}">${active?'نشط':'غير نشط'}</div></div>`}).join('')||'<div class="empty"><div class="empty-txt">لا نتائج</div></div>';
+  document.getElementById('adm-emp-list').innerHTML=list.map(e=>{const a=avOf(e);const active=e.lastDate&&new Date(e.lastDate)>=weekAgo;return`<div class="emp-row"><div class="emp-avatar" style="background:${a.bg}">${a.av}</div><div class="emp-info"><div class="emp-name">${e.name}</div><div class="emp-meta">${e.dept?e.dept+' · ':''}${e.sessions||0} جلسة · سلسلة ${e.streak||0} يوم</div></div><div class="emp-badge ${active?'active':'inactive'}">${active?'نشط':'غير نشط'}</div></div>`}).join('')||'<div class="empty"><div class="empty-txt">لا نتائج</div></div>';
 }
 function filterEmps(){renderAdminEmps(document.getElementById('adm-search').value.trim())}
 
@@ -1759,7 +1905,7 @@ async function renderAdminRewards(){
 async function markDelivered(id){
   const snap=await db.collection('redemptions').doc(id).get();const r=snap.data()||{};
   if(r.code){const entered=prompt(`أدخل رمز الاستلام الذي يعرضه ${r.userName||'المستخدم'} على هاتفه (6 أرقام):`);if(entered===null)return;if(entered.trim()!==r.code){showToast('⚠️ الرمز غير صحيح');return}}
-  await db.collection('redemptions').doc(id).update({status:'done',deliveredAt:new Date().toISOString()});renderAdminRewards();showToast('✅ تم التسليم وتأكيد الاستلام');
+  await db.collection('redemptions').doc(id).update({status:'done',deliveredAt:new Date().toISOString()});pushTo({toUid:r.uid},'🎁 تم تسليم مكافأتك',r.rewardName||'',null);renderAdminRewards();showToast('✅ تم التسليم وتأكيد الاستلام');
 }
 async function seedRewards(){
   const batch=db.batch();
@@ -1779,7 +1925,7 @@ async function addReward(){
   if(!n||!p){showToast('أدخل الاسم والنقاط');return}
   const icons=['🎁','📦','🎫','🏆','💎'];
   await db.collection('rewards').add({orgId:scopeOrg(),name:n,desc:d,cost:p,qty:q,img:newRwImg||null,icon:icons[Math.floor(Math.random()*icons.length)],bg:AV_BGS[Math.floor(Math.random()*AV_BGS.length)]});
-  toggleAddRw();renderAdminRewards();showToast('تمت إضافة المكافأة');
+  toggleAddRw();renderAdminRewards();showToast('تمت إضافة المكافأة');pushTo({toOrg:scopeOrg()},'🎁 مكافأة جديدة',n+' — '+p+' نقطة','/#rewards');
   document.getElementById('new-rw-name').value='';document.getElementById('new-rw-desc').value='';
   document.getElementById('new-rw-pts').value='';document.getElementById('new-rw-qty').value='';newRwImg=null;document.getElementById('new-rw-prev').style.display='none';document.getElementById('new-rw-img').value='';
 }
@@ -1802,6 +1948,43 @@ function shareJoin(){
   if(!S._joinCode){showToast('يضيف مدير المنصة النطاقات');return}
   shareText('اقرأ واكسب',`انضم إلينا في «اقرأ واكسب» 📚\nالكود: ${S._joinCode}\n${location.origin}`);
 }
+
+// ======== KPI REPORT ========
+function monthKey(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+async function renderReport(){
+  const body=document.getElementById('report-body');body.innerHTML='<div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div></div>';
+  try{await loadUsers()}catch(e){console.error(e)}
+  const users=USERS_CACHE;const now=new Date();const thisM=monthKey(now);const lm=new Date(now.getFullYear(),now.getMonth()-1,1);const lastM=monthKey(lm);
+  let totalMin=0,quizN=0,quizSum=0,finished=0;const activeAll=new Set(),activeThis=new Set(),activeLast=new Set();const depts={};
+  users.forEach(u=>{
+    const d=u.dept||t('no_dept');if(!depts[d])depts[d]={n:0,min:0,ses:0,pts:0,fin:0};depts[d].n++;depts[d].pts+=u.pts||0;
+    (u.log||[]).forEach(l=>{const dt=new Date(l.date);const mk=monthKey(dt);totalMin+=(l.dur||15);activeAll.add(u.id);if(mk===thisM)activeThis.add(u.id);if(mk===lastM)activeLast.add(u.id);depts[d].min+=(l.dur||15);depts[d].ses++;if(l.quizScore!==undefined&&l.quizScore!==null&&l.verified){quizN++;quizSum+=l.quizScore}});
+    const f=Object.values(u.books||{}).filter(b=>b.finished).length;finished+=f;depts[d].fin+=f;
+  });
+  const retention=activeLast.size?Math.round([...activeLast].filter(x=>activeThis.has(x)).length/activeLast.size*100):null;
+  const comp=quizN?(quizSum/quizN/5*100).toFixed(0):null;
+  const deptRows=Object.entries(depts).sort((a,b)=>b[1].min-a[1].min);
+  const L=t;
+  body.innerHTML=`
+    <div class="report-head"><div style="font-family:var(--ff);font-size:18px;font-weight:900">${L('kpi_title')} — ${S.orgName}</div><div style="font-size:11px;color:#666">${new Date().toLocaleDateString(LANG==='ar'?'ar-AE':'en-GB',{year:'numeric',month:'long',day:'numeric'})}</div></div>
+    <table class="kpi-table">
+      <thead><tr><th>${L('kpi_ind')}</th><th>${L('kpi_how')}</th><th>${L('kpi_val')}</th></tr></thead>
+      <tbody>
+        <tr><td>${L('k1')}</td><td class="m">${L('k1m')}</td><td class="v">${activeAll.size} / ${users.length}</td></tr>
+        <tr><td>${L('k2')}</td><td class="m">${L('k2m')}</td><td class="v">${(totalMin/60).toFixed(1)} ${L('h')}</td></tr>
+        <tr><td>${L('k3')}</td><td class="m">${L('k3m')}</td><td class="v">${retention===null?'—':retention+'%'}</td></tr>
+        <tr><td>${L('k4')}</td><td class="m">${L('k4m')}</td><td class="v">${comp===null?'—':comp+'%'}<div style="font-size:10px;font-weight:400;color:var(--tx3)">${quizN} ${L('quizzes')}</div></td></tr>
+        <tr><td>${L('k5')}</td><td class="m">${L('k5m')}</td><td class="v">${finished}</td></tr>
+      </tbody>
+    </table>
+    <div style="font-family:var(--ff);font-size:12px;font-weight:700;margin:16px 0 4px">${L('k6')} <span style="font-weight:400;color:var(--tx3)">— ${L('k6m')}</span></div>
+    <table class="kpi-table">
+      <thead><tr><th>#</th><th>${L('dept')}</th><th>${L('readers')}</th><th>${L('sessions')}</th><th>${L('minutes')}</th><th>${L('finished')}</th><th>${L('points')}</th></tr></thead>
+      <tbody>${deptRows.map(([d,x],i)=>`<tr><td class="v" style="font-size:12px">${i+1}</td><td>${d}</td><td>${x.n}</td><td>${x.ses}</td><td>${x.min}</td><td>${x.fin}</td><td class="v" style="font-size:12px">${x.pts}</td></tr>`).join('')||`<tr><td colspan="7" class="m">${L('no_data')}</td></tr>`}</tbody>
+    </table>
+    <div style="font-size:10px;color:var(--tx3);margin-top:12px">${L('report_note')}</div>`;
+}
+function printReport(){window.print()}
 
 // ======== SUPER ADMIN ========
 async function ensureIndividualOrg(){
@@ -1835,6 +2018,7 @@ async function toggleOrg(id,activate){
 }
 
 // ======== MY BOOKS ========
+function toggleFinished(name){const b=S.books&&S.books[name];if(!b)return;if(b.finished){b.finished=null}else{b.finished=new Date().toISOString();S.pts+=25;confetti();showToast('📗 ختمة جديدة! +25 نقطة')}S.finishedCount=Object.values(S.books).filter(x=>x.finished).length;save();refreshAll();renderBooks();checkBadges()}
 function renderBooks(){
   const c=document.getElementById('books-list');
   if(!S.books||!Object.keys(S.books).length){
@@ -1853,7 +2037,7 @@ function renderBooks(){
       <div class="book-prog-head">
         <div class="book-prog-icon" style="background:var(--ok-l)">📖</div>
         <div class="book-prog-info">
-          <div class="book-prog-title">${(b.info&&b.info.title)||name}</div>
+          <div class="book-prog-title">${b.finished?'📗 ':''}${(b.info&&b.info.title)||name}</div>
           ${(b.info&&b.info.author)||b.author?`<div class="book-prog-meta">✍️ ${(b.info&&b.info.author)||b.author}${b.info&&b.info.found?' · 🌐 معروف':''}</div>`:''}
           <div class="book-prog-meta">${sessionsInBook} جلسة · ${pagesRead} صفحة · آخر قراءة: ${lastD}</div>
         </div>
@@ -1862,7 +2046,7 @@ function renderBooks(){
       ${b.chapters.length?`<div class="book-prog-chapters">${chapTags}</div>`:''}
       ${pageRanges?`<div style="font-size:10px;color:var(--tx3);margin-top:6px">📄 ${pageRanges}</div>`:''}
       ${(b.captured||[]).length?`<div style="margin-top:8px"><div style="font-family:var(--ff);font-size:11px;font-weight:700;color:var(--g1);margin-bottom:4px">📸 الصفحات الموثّقة (${b.captured.length})</div>${b.captured.slice(-6).reverse().map(c=>`<div class="journal-quote" style="margin-top:4px"><b>ص${c.page}</b> · ${new Date(c.date).toLocaleDateString('ar-AE',{day:'numeric',month:'short'})}<br>${c.excerpt||''}${c.excerpt&&c.excerpt.length>=160?'…':''}</div>`).join('')}</div>`:''}
-      <div style="margin-top:10px"><button class="btn-xs btn-o" onclick="showPage('log')">عرض الجلسات</button></div>
+      <div style="margin-top:10px;display:flex;gap:8px"><button class="btn-xs btn-o" onclick="showPage('log')">عرض الجلسات</button><button class="btn-xs ${b.finished?'btn-o':'btn-g'}" onclick="toggleFinished('${name.replace(/'/g,"\\'")}')">${b.finished?'↩️ إلغاء الختمة':'✅ أنهيت الكتاب'}</button></div>
     </div>`;
   }).join('');
 }
@@ -1957,6 +2141,7 @@ async function choosePartner(id){
   const chosen=(window._ptCands||[]).find(u=>u.id===id);if(!chosen)return;
   S.partnerId=chosen.id;S.partnerName=chosen.name;S.partnerRatings=[];save();
   try{await db.collection('users').doc(chosen.id).update({partnerId:uid,partnerName:S.name})}catch(e){console.error(e)}
+  pushTo({toUid:chosen.id},'👥 شريك قراءة جديد',S.name+' اختارك شريكاً للقراءة','/#partner');
   try{await db.collection('messages').add({orgId:S.orgId,from:uid,to:chosen.id,fromName:S.name,text:'👋 مرحباً! أصبحنا شريكي قراءة — بالتوفيق لنا معاً',date:new Date().toISOString(),read:false})}catch(e){}
   confetti();showToast('🎉 تم ربطك مع '+chosen.name);renderPartner();
 }
@@ -1979,7 +2164,7 @@ function renderChat(){
 async function sendChat(){
   const inp=document.getElementById('chat-inp');const t=inp.value.trim();if(!t||!S.partnerId)return;
   inp.value='';
-  try{await db.collection('messages').add({orgId:S.orgId,from:uid,to:S.partnerId,fromName:S.name,text:t.slice(0,500),date:new Date().toISOString(),read:false})}catch(e){console.error(e);showToast('⚠️ تعذّر الإرسال')}
+  try{await db.collection('messages').add({orgId:S.orgId,from:uid,to:S.partnerId,fromName:S.name,text:t.slice(0,500),date:new Date().toISOString(),read:false});pushTo({toUid:S.partnerId},'💬 '+S.name,t.slice(0,120),'/#partner')}catch(e){console.error(e);showToast('⚠️ تعذّر الإرسال')}
 }
 function ratePartner(key,emoji){
   if(!S.partnerRatings)S.partnerRatings=[];
