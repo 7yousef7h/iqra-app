@@ -45,12 +45,19 @@ async function getUser(pid, at, uid) {
   const r = await fetch(`https://firestore.googleapis.com/v1/projects/${pid}/databases/(default)/documents/users/${uid}`, { headers: { Authorization: 'Bearer ' + at } });
   if (!r.ok) return null; return r.json();
 }
-async function orgUsers(pid, at, orgId) {
+async function runQuery(pid, at, filters) {
+  const where = filters.length === 1 ? { fieldFilter: filters[0] } : { compositeFilter: { op: 'AND', filters: filters.map(f => ({ fieldFilter: f })) } };
   const r = await fetch(`https://firestore.googleapis.com/v1/projects/${pid}/databases/(default)/documents:runQuery`, {
     method: 'POST', headers: { Authorization: 'Bearer ' + at, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'users' }], where: { fieldFilter: { field: { fieldPath: 'orgId' }, op: 'EQUAL', value: { stringValue: orgId } } }, limit: 500 } })
+    body: JSON.stringify({ structuredQuery: { from: [{ collectionId: 'users' }], where, limit: 500 } })
   });
   const j = await r.json(); return (j || []).map(x => x.document).filter(Boolean);
+}
+const eq = (f, v) => ({ field: { fieldPath: f }, op: 'EQUAL', value: { stringValue: v } });
+async function orgUsers(pid, at, orgId) { return runQuery(pid, at, [eq('orgId', orgId)]); }
+async function orgAdmins(pid, at, orgId) {
+  if (orgId === 'individual') return runQuery(pid, at, [eq('role', 'super')]);
+  return runQuery(pid, at, [eq('orgId', orgId), eq('role', 'admin')]);
 }
 
 async function sendOne(pid, at, token, title, body, link) {
@@ -73,7 +80,7 @@ module.exports = async (req, res) => {
   if (!callerUid) return res.status(401).json({ error: 'invalid token' });
 
   let body = req.body; if (typeof body === 'string') { try { body = JSON.parse(body); } catch { body = {}; } }
-  const { toUid, toOrg, title, text, link } = body || {};
+  const { toUid, toOrg, toAdmins, title, text, link } = body || {};
   if (!title || !text || (!toUid && !toOrg)) return res.status(400).json({ error: 'title, text and toUid|toOrg required' });
 
   try {
@@ -86,6 +93,10 @@ module.exports = async (req, res) => {
       const allowed = role === 'super' || (role === 'admin' && fieldStr(u, 'orgId') === callerOrg) || fieldStr(u, 'partnerId') === callerUid || fieldStr(caller, 'partnerId') === toUid;
       if (!allowed) return res.status(403).json({ error: 'not allowed' });
       targets = [u];
+    } else if (toAdmins) {
+      // any member may notify the admins of their own org (e.g. a redemption request)
+      if (!(role === 'super' || toOrg === callerOrg)) return res.status(403).json({ error: 'not allowed' });
+      targets = await orgAdmins(pid, at, toOrg);
     } else {
       if (!(role === 'super' || (role === 'admin' && toOrg === callerOrg))) return res.status(403).json({ error: 'not allowed' });
       targets = await orgUsers(pid, at, toOrg);
