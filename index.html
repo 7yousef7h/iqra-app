@@ -8,7 +8,7 @@
 <meta name="theme-color" content="#5F1668">
 <title>اقرأ واكسب</title>
 <link rel="manifest" href="./manifest.json">
-<link rel="apple-touch-icon" href="./icons/icon-192.png">
+<link rel="apple-touch-icon" href="./icon-192.png">
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
@@ -454,6 +454,11 @@ input,button,textarea,select{font-family:inherit}
       </div>
 
       <div class="card">
+        <div class="card-head"><div class="card-title">🎯 هدفي اليومي</div><div class="card-link" onclick="setGoal()">تعديل</div></div>
+        <div id="goal-body"></div>
+      </div>
+
+      <div class="card">
         <div class="card-head"><div class="card-title">إحصائياتي</div></div>
         <div class="stat-2">
           <div class="stat-box"><div class="v" id="st-wk-min">0</div><div class="l">دقيقة هذا الأسبوع</div></div>
@@ -573,6 +578,8 @@ input,button,textarea,select{font-family:inherit}
         <div style="font-family:var(--ff);font-size:40px;font-weight:900" id="rw-bal">0</div>
         <div style="font-size:12px;opacity:.8">نقطة</div>
       </div>
+      <div class="card-title mb-10 mt-16">طلباتي</div>
+      <div id="my-redeem"></div>
       <div class="card-title mb-10 mt-16">المكافآت المتاحة</div>
       <div id="rw-list"></div>
     </div>
@@ -674,6 +681,10 @@ input,button,textarea,select{font-family:inherit}
           <div class="field"><label>الوصف</label><input id="new-rw-desc" placeholder="مثال: من مكتبة جرير"></div>
           <div class="field"><label>النقاط المطلوبة</label><input id="new-rw-pts" type="number" placeholder="500" dir="ltr"></div>
           <div class="field"><label>العدد المتاح</label><input id="new-rw-qty" type="number" placeholder="10" dir="ltr"></div>
+          <div class="field"><label>صورة المنتج (اختياري)</label>
+            <input type="file" id="new-rw-img" accept="image/*" onchange="onRwImage(this)" style="font-size:12px">
+            <img id="new-rw-prev" style="display:none;width:80px;height:80px;object-fit:cover;border-radius:10px;margin-top:8px;border:2px solid var(--bdr)">
+          </div>
           <div class="flex-row gap-8">
             <button class="btn btn-g btn-sm" onclick="addReward()">حفظ</button>
             <button class="btn btn-o btn-sm" onclick="toggleAddRw()">إلغاء</button>
@@ -753,7 +764,7 @@ input,button,textarea,select{font-family:inherit}
   <div class="modal-sheet" style="text-align:center">
     <div style="font-size:44px;margin-bottom:6px">📸</div>
     <div style="font-family:var(--ff);font-size:17px;font-weight:800;margin-bottom:6px">لحظة تحقق</div>
-    <div style="font-size:13px;color:var(--tx2);line-height:1.8;margin-bottom:14px">صوّر الصفحة التي تقرأها <b>الآن</b>. سيقرأها المساعد الذكي ويعدّ لك أسئلة عنها في نهاية الجلسة.<br><span style="color:var(--tx3);font-size:12px">المؤقّت متوقف مؤقتاً</span></div>
+    <div id="cap-sub" style="font-size:13px;color:var(--tx2);line-height:1.8;margin-bottom:14px"></div>
     <input type="file" id="cap-input" accept="image/*" capture="environment" style="display:none" onchange="onCapture(this)">
     <img id="cap-preview" style="display:none;max-width:100%;max-height:220px;border-radius:var(--r-sm);margin-bottom:12px;border:2px solid var(--bdr)">
     <button class="btn btn-g" id="cap-btn" onclick="document.getElementById('cap-input').click()">📷 التقط صورة الصفحة</button>
@@ -1063,6 +1074,10 @@ function toggleTimer(){
 function startT(){
   const inp=document.getElementById('t-book');
   if(!inp.value.trim()){inp.style.borderColor='var(--err)';inp.setAttribute('placeholder','⚠️ أدخل اسم الكتاب');setTimeout(()=>{inp.style.borderColor='';inp.setAttribute('placeholder','📚 اسم الكتاب')},2000);return}
+  const pf=parseInt(document.getElementById('t-pg-from').value),pt=parseInt(document.getElementById('t-pg-to').value);
+  if(!pf||!pt||pt<pf){showToast('حدّد نطاق الصفحات (من – إلى) قبل البدء');['t-pg-from','t-pg-to'].forEach(i=>{const e=document.getElementById(i);e.style.borderColor='var(--err)';setTimeout(()=>e.style.borderColor='',2000)});return}
+  if(captureAt===null)ensureBookInfo();
+  keepAwake(true);if('Notification' in window&&Notification.permission==='default')Notification.requestPermission();
   running=true;inp.disabled=true;
   document.getElementById('t-chapter').disabled=true;document.getElementById('t-author').disabled=true;
   document.getElementById('t-pg-from').disabled=true;
@@ -1070,17 +1085,72 @@ function startT(){
   document.querySelectorAll('.dur-btn').forEach(b=>b.disabled=true);
   document.getElementById('t-btn').innerHTML='⏸ إيقاف مؤقت';document.getElementById('t-btn').className='btn btn-o';
   document.getElementById('t-lbl').textContent='جارٍ القراءة...';
-  if(captureAt===null){captureAt=Math.floor(DURATION*(0.33+Math.random()*0.42));captureState='pending';pageAI=null;pageAIPromise=null;document.getElementById('t-ai-status').style.display='none'}
+  if(captureAt===null){
+    // schedule capture moments: decided once book lookup resolves (1 if found online, 3 otherwise)
+    captureAt=[];capturedPages=[];captureState='pending';pageAI=null;pageAIPromise=null;document.getElementById('t-ai-status').style.display='none';
+    scheduleCaptures(bookFound===false?3:1);
+  }
   timerInt=setInterval(()=>{
     timeLeft--;updateTimer();
     const elapsed=DURATION-timeLeft;
-    if(captureState==='pending'&&elapsed>=captureAt){openCapture();return}
+    if(captureState==='pending'&&captureAt.length&&elapsed>=captureAt[0]){openCapture();return}
     if(timeLeft<=0)endSession();
   },1000);
 }
+let capturedPages=[];   // [{page,text}]
+let bookFound=null;     // null=unknown, true/false
+let captureFails=0;
+function scheduleCaptures(n){
+  // spread n capture moments across 25%..85% of the session, in order
+  const lo=0.25,hi=0.85;const out=[];
+  for(let i=0;i<n;i++){const a=lo+(hi-lo)*i/n,b=lo+(hi-lo)*(i+1)/n;out.push(Math.floor(DURATION*(a+Math.random()*(b-a)*0.8)))}
+  // keep any already-passed moments out
+  const elapsed=DURATION-timeLeft;captureAt=out.filter(t=>t>elapsed+5);
+  if(!captureAt.length)captureAt=[Math.min(DURATION-10,elapsed+15)];
+}
+function neededCaptures(){return bookFound===false?3:1}
+async function ensureBookInfo(){
+  const book=document.getElementById('t-book').value.trim();const author=document.getElementById('t-author').value.trim();
+  const saved=S.books&&S.books[book]&&S.books[book].info;
+  if(bookInfo&&bookInfo.found!==undefined){bookFound=!!bookInfo.found;return}
+  if(saved&&saved.found!==undefined){bookInfo=saved;bookFound=!!saved.found;return}
+  setAIStatus('🔎 جارٍ التحقق من الكتاب...');
+  try{
+    const text=await askAI(`ابحث عن كتاب "${book}"${author?' للمؤلف "'+author+'"':''}. هل تعرف محتوى هذا الكتاب بدقة كافية لطرح أسئلة فهم عن صفحات محددة منه (نعم فقط إن كان الكتاب معروفاً ومتاح المحتوى/الملخصات التفصيلية)؟ أجب JSON فقط: {"found":true|false,"title":"العنوان الكامل","author":"المؤلف","about":"نبذة 3-4 جمل"}`,{max_tokens:600,search:true});
+    const m=text.match(/\{[\s\S]*\}/);const j=JSON.parse(m?m[0]:text);
+    bookInfo={...(bookInfo||{}),...j};bookFound=!!j.found;
+    setAIStatus(bookFound?`✅ الكتاب معروف — تحقق واحد وأسئلة عن كامل النطاق`:`ℹ️ الكتاب غير متاح على الإنترنت — سنطلب تصوير 3 صفحات`);
+    if(running)scheduleCaptures(neededCaptures());
+  }catch(e){console.error(e);bookFound=false;setAIStatus('ℹ️ تعذّر التحقق من الكتاب — سنطلب تصوير 3 صفحات');if(running)scheduleCaptures(3)}
+}
+let wakeLock=null;
+async function keepAwake(on){
+  try{
+    if(on&&'wakeLock' in navigator&&!wakeLock){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null})}
+    else if(!on&&wakeLock){await wakeLock.release();wakeLock=null}
+  }catch(e){console.warn('wakeLock',e)}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&running)keepAwake(true)});
+function beep(){
+  try{const ctx=new (window.AudioContext||window.webkitAudioContext)();[0,0.25,0.5].forEach(t=>{const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.setValueAtTime(0.0001,ctx.currentTime+t);g.gain.exponentialRampToValueAtTime(0.4,ctx.currentTime+t+0.02);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+t+0.2);o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+0.22)})}catch(e){}
+  if(navigator.vibrate)navigator.vibrate([200,100,200,100,400]);
+}
+async function notifyLocal(title,body){
+  try{
+    if(!('Notification' in window))return;
+    if(Notification.permission==='default')await Notification.requestPermission();
+    if(Notification.permission!=='granted')return;
+    const reg=await navigator.serviceWorker.getRegistration();
+    if(reg)reg.showNotification(title,{body,icon:'./icon-192.png',badge:'./icon-192.png',vibrate:[200,100,200],tag:'iqra-capture',renotify:true,dir:'rtl',lang:'ar'});
+    else new Notification(title,{body,icon:'./icon-192.png'});
+  }catch(e){console.warn(e)}
+}
 function openCapture(){
-  clearInterval(timerInt);running=false;
+  clearInterval(timerInt);running=false;captureFails=0;
+  beep();notifyLocal('📸 لحظة تحقق','صوّر الصفحة التي تقرأها الآن — المؤقّت متوقف');
   document.getElementById('t-lbl').textContent='📸 لحظة تحقق';
+  const pf=document.getElementById('t-pg-from').value,pt=document.getElementById('t-pg-to').value;
+  document.getElementById('cap-sub').innerHTML=`صوّر الصفحة التي تقرأها <b>الآن</b> بحيث يظهر <b>رقم الصفحة</b> بوضوح (النطاق: ص${pf}–${pt}). ${neededCaptures()>1?`التحقق ${capturedPages.length+1} من ${neededCaptures()}`:''}<br><span style="color:var(--tx3);font-size:12px">المؤقّت متوقف مؤقتاً</span>`;
   document.getElementById('cap-preview').style.display='none';
   document.getElementById('cap-btn').textContent='📷 التقط صورة الصفحة';document.getElementById('cap-btn').disabled=false;
   document.getElementById('capture-modal').classList.add('open');
@@ -1092,7 +1162,7 @@ function resumeAfterCapture(){
   document.getElementById('t-lbl').textContent='جارٍ القراءة...';
   timerInt=setInterval(()=>{timeLeft--;updateTimer();if(timeLeft<=0)endSession()},1000);
 }
-function skipCapture(){captureState='skipped';setAIStatus('⚪ تخطّيت التحقق — ستحصل على النقاط الأساسية فقط');resumeAfterCapture()}
+function skipCapture(){captureState='skipped';captureAt=[];setAIStatus('⚪ تخطّيت التحقق — ستحصل على النقاط الأساسية فقط');resumeAfterCapture()}
 function setAIStatus(t){const e=document.getElementById('t-ai-status');e.style.display='block';e.textContent=t}
 function shrinkImage(file,max=1280){
   return new Promise((res,rej)=>{
@@ -1103,13 +1173,36 @@ function shrinkImage(file,max=1280){
 }
 async function onCapture(inp){
   const f=inp.files&&inp.files[0];if(!f)return;
-  const btn=document.getElementById('cap-btn');btn.disabled=true;btn.textContent='جارٍ التجهيز...';
+  const btn=document.getElementById('cap-btn');btn.disabled=true;btn.textContent='🤖 جارٍ قراءة الصفحة...';
   let dataUrl;try{dataUrl=await shrinkImage(f)}catch(e){showToast('تعذّر قراءة الصورة');btn.disabled=false;btn.textContent='📷 التقط صورة الصفحة';return}
-  const prev=document.getElementById('cap-preview');prev.src=dataUrl;prev.style.display='block';
-  captureState='done';inp.value='';
-  setAIStatus('🤖 جارٍ تحليل الصفحة في الخلفية...');
-  pageAIPromise=analyzePage(dataUrl.split(',')[1]).then(r=>{pageAI=r;setAIStatus('✅ قرأ المساعد صفحتك — الأسئلة جاهزة لنهاية الجلسة');return r}).catch(e=>{console.error(e);pageAI=null;setAIStatus('⚠️ تعذّر تحليل الصفحة — سنستخدم أسئلة عامة');return null});
-  setTimeout(resumeAfterCapture,700);
+  const prev=document.getElementById('cap-preview');prev.src=dataUrl;prev.style.display='block';inp.value='';
+  const pf=parseInt(document.getElementById('t-pg-from').value),pt=parseInt(document.getElementById('t-pg-to').value);
+  try{
+    const r=await extractPage(dataUrl.split(',')[1]);
+    const pn=r.pageNumber;
+    if(!pn){throw new Error('لم يظهر رقم الصفحة في الصورة — أعد التصوير بحيث يظهر الرقم')}
+    if(pn<pf||pn>pt){throw new Error(`الصفحة ${pn} خارج النطاق الذي حدّدته (ص${pf}–${pt}) — صوّر صفحة من النطاق`)}
+    if(capturedPages.some(x=>x.page===pn)){throw new Error(`صوّرت الصفحة ${pn} مسبقاً — صوّر صفحة أخرى`)}
+    capturedPages.push({page:pn,text:r.text||''});
+    captureAt.shift();
+    const done=capturedPages.length>=neededCaptures();
+    if(done){captureState='done';setAIStatus(`✅ تم توثيق ${capturedPages.length===1?'الصفحة '+pn:'الصفحات '+capturedPages.map(x=>x.page).join('، ')}`)}
+    else{setAIStatus(`✅ الصفحة ${pn} موثّقة — بقي ${neededCaptures()-capturedPages.length} تحقق`)}
+    showToast('✅ صفحة '+pn+' ضمن النطاق');
+    setTimeout(resumeAfterCapture,600);
+  }catch(e){
+    console.error(e);captureFails++;
+    btn.disabled=false;btn.textContent='📷 أعد التصوير';
+    showToast('⚠️ '+(e.message||'تعذّر التحليل'));
+    if(captureFails>=3){document.getElementById('cap-sub').innerHTML+='<br><span style="color:var(--err)">بعد 3 محاولات يمكنك التخطّي (نقاط أساسية فقط)</span>'}
+  }
+}
+async function extractPage(b64){
+  const prompt=`هذه صورة صفحة من كتاب. 1) اقرأ رقم الصفحة المطبوع (عادة في الأعلى أو الأسفل) وأعده كعدد صحيح، أو null إن لم يظهر. 2) استخرج نص الصفحة كاملاً بدقة. إن لم تكن الصورة صفحة كتاب أعد {"error":"not_a_page"}. أجب JSON فقط: {"pageNumber":123,"text":"..."}`;
+  const text=await askAI(null,{max_tokens:3000,content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}},{type:'text',text:prompt}]});
+  const m=text.match(/\{[\s\S]*\}/);const j=JSON.parse(m?m[0]:text);
+  if(j.error)throw new Error('الصورة ليست صفحة كتاب واضحة');
+  return {pageNumber:j.pageNumber?parseInt(j.pageNumber):null,text:j.text||''};
 }
 async function analyzePage(b64){
   const book=document.getElementById('t-book').value.trim();
@@ -1132,13 +1225,13 @@ async function onCover(inp){
   const st=document.getElementById('cover-status');st.style.display='block';st.textContent='🤖 جارٍ التعرف على الكتاب من الغلاف...';
   try{
     const dataUrl=await shrinkImage(f,1000);inp.value='';
-    const text=await askAI(null,{max_tokens:800,search:true,content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:dataUrl.split(',')[1]}},{type:'text',text:'هذه صورة غلاف كتاب. حدّد عنوان الكتاب والمؤلف بدقة (ابحث للتأكد إن لزم)، ثم اكتب نبذة من 3-4 جمل عن محتواه وأفكاره الرئيسية. أجب بصيغة JSON فقط: {"title":"...","author":"...","about":"..."}'}]});
+    const text=await askAI(null,{max_tokens:800,search:true,content:[{type:'image',source:{type:'base64',media_type:'image/jpeg',data:dataUrl.split(',')[1]}},{type:'text',text:'هذه صورة غلاف كتاب. حدّد العنوان الكامل والمؤلف بدقة (ابحث للتأكد)، واكتب نبذة من 3-4 جمل عن محتواه، وحدّد found=true فقط إن كان الكتاب معروفاً ومحتواه/ملخصاته التفصيلية متاحة على الإنترنت بما يكفي لطرح أسئلة عن صفحات محددة منه. أجب JSON فقط: {"title":"...","author":"...","about":"...","found":true}'}]});
     const j=JSON.parse(text.replace(/```json|```/g,'').trim());
-    bookInfo=j;
+    bookInfo=j;bookFound=j.found===true;
     const tb=document.getElementById('t-book'),ta=document.getElementById('t-author');
     if(j.title&&!tb.value.trim())tb.value=j.title;
     if(j.author&&!ta.value.trim())ta.value=j.author;
-    st.textContent=`✅ ${j.title||''}${j.author?' — '+j.author:''}`;
+    st.textContent=`✅ ${j.title||''}${j.author?' — '+j.author:''}${j.found?' · 🌐 معروف (تحقق واحد)':' · غير متاح على الإنترنت (3 تحققات)'}`;
   }catch(e){console.error(e);st.textContent='⚠️ تعذّر التعرف على الغلاف: '+e.message}
 }
 function cycleLevel(){const L=['مبتدئ','متوسط','متقدم'];S.level=L[(L.indexOf(S.level||'متوسط')+1)%3];save();document.getElementById('pf-level').textContent=S.level;showToast('مستوى الأسئلة: '+S.level)}
@@ -1155,7 +1248,7 @@ function updateTimer(){
   const p=1-(timeLeft/DURATION);
   document.getElementById('t-prog').style.strokeDashoffset=678.6*(1-p);
 }
-function endSession(){clearInterval(timerInt);running=false;captureAt=null;
+function endSession(){clearInterval(timerInt);running=false;captureAt=null;keepAwake(false);
   if(captureState==='skipped'){finishUnverified();return}
   startAIQuiz()}
 
@@ -1179,14 +1272,28 @@ async function startAIQuiz(){
   document.getElementById('quiz-modal').classList.add('open');
   quizIdx=0;quizCorrect=0;
 
-  // Prefer questions generated from the photographed page
-  if(pageAIPromise){await pageAIPromise}
-  if(pageAI&&pageAI.questions){
-    quizData=pageAI.questions.slice(0,5);
-    document.getElementById('qz-context').textContent=context+' · 📸 من الصفحة المصوّرة';
-    document.getElementById('qz-loading').style.display='none';
-    document.getElementById('qz-content').style.display='block';
-    renderQuizQuestion();return;
+  // Questions from verified captures
+  if(capturedPages.length){
+    const level=S.level||'متوسط';const author=document.getElementById('t-author').value.trim();
+    const texts=capturedPages.map(x=>`--- صفحة ${x.page} ---\n${x.text}`).join('\n\n');
+    let p2;
+    if(bookFound){
+      p2=`الكتاب: "${(bookInfo&&bookInfo.title)||book}"${author?' — '+author:''}. القارئ يقول إنه قرأ الصفحات ${pgFrom}–${pgTo}. صوّر الصفحة ${capturedPages[0].page} وهذا نصها:\n${texts}\n\nمستوى القارئ: ${level}.\n1) اكتب ملخصاً في 3 جمل لما يغطيه هذا النطاق من الكتاب.\n2) أنشئ 5 أسئلة اختيار من متعدد (4 خيارات) تغطي محتوى الصفحات ${pgFrom}–${pgTo} كاملة (استعن بمعرفتك بالكتاب والبحث إن لزم) وليس الصفحة المصوّرة فقط: سؤالان استيعاب، سؤالان استنتاج، سؤال مفردات. الخيارات الخاطئة معقولة.\nأجب JSON فقط: {"summary":"...","questions":[{"q":"...","opts":["","","",""],"correct":0,"hint":"...","type":"استيعاب|استنتاج|مفردات"}]}`;
+    }else{
+      p2=`الكتاب: "${book}"${author?' — '+author:''} (غير متاح على الإنترنت). القارئ صوّر ${capturedPages.length} صفحات من النطاق ${pgFrom}–${pgTo}:\n${texts}\n\nمستوى القارئ: ${level}.\n1) اكتب ملخصاً في 3 جمل لهذه الصفحات.\n2) أنشئ 5 أسئلة اختيار من متعدد (4 خيارات) اعتماداً على نصوص هذه الصفحات فقط: سؤالان استيعاب، سؤالان استنتاج، سؤال مفردات. الخيارات الخاطئة معقولة.\nأجب JSON فقط: {"summary":"...","questions":[{"q":"...","opts":["","","",""],"correct":0,"hint":"...","type":"استيعاب|استنتاج|مفردات"}]}`;
+    }
+    try{
+      const text=await askAI(p2,{max_tokens:3000,search:!!bookFound});
+      const m=text.match(/\{[\s\S]*\}/);const j=JSON.parse(m?m[0]:text);
+      if(j.questions&&j.questions.length){
+        pageAI={questions:j.questions,summary:j.summary,pages:capturedPages.map(x=>x.page)};
+        quizData=j.questions.slice(0,5);
+        document.getElementById('qz-context').textContent=context+' · 📸 '+(bookFound?'موثّق — أسئلة عن كامل النطاق':'من الصفحات المصوّرة');
+        document.getElementById('qz-loading').style.display='none';
+        document.getElementById('qz-content').style.display='block';
+        renderQuizQuestion();return;
+      }
+    }catch(e){console.error(e);showToast('⚠️ تعذّر توليد الأسئلة من الصفحات: '+e.message)}
   }
 
   const author=document.getElementById('t-author').value.trim();
@@ -1286,7 +1393,7 @@ function showQuizResult(){
       <div class="ai-eval-body">${passed?`أجبت ${quizCorrect} من 5 إجابات صحيحة. هذا يؤكد قراءتك الفعلية!`:`أجبت ${quizCorrect} من 5 فقط. راجع ما قرأته وحاول مجدداً في الجلسة القادمة.`}</div>
       <div class="ai-eval-score ${passed?'good':'weak'}">${quizCorrect}/5 ✓</div>
     </div>
-    ${pageAI&&pageAI.summary?`<div class="card" style="margin-top:12px;text-align:right"><div class="card-title mb-10">📝 ملخص الصفحة التي صوّرتها</div><div style="font-size:13px;line-height:1.9;color:var(--tx2)">${pageAI.summary}</div><div style="font-size:11px;color:var(--tx3);margin-top:8px">راجع الملخص وقارنه بفهمك</div></div>`:''}
+    ${pageAI&&pageAI.summary?`<div class="card" style="margin-top:12px;text-align:right"><div class="card-title mb-10">📝 الملخص</div><div style="font-size:13px;line-height:1.9;color:var(--tx2)">${pageAI.summary}</div><div style="font-size:11px;color:var(--tx3);margin-top:8px">راجع الملخص وقارنه بفهمك</div></div>`:''}
     <button class="btn ${passed?'btn-g':'btn-a'} mt-16" onclick="finishQuiz(${passed},${quizCorrect})">
       ${passed?'✓ احصل على نقاطك':'حسناً'}
     </button>`;
@@ -1303,7 +1410,9 @@ function finishQuiz(passed,score){
   if(!S.books)S.books={};
   if(!S.books[book])S.books[book]={sessions:0,pages:[],chapters:[],totalPages:0,firstDate:new Date().toISOString()};
   S.books[book].sessions++;
-  {const au=document.getElementById('t-author').value.trim();if(au)S.books[book].author=au;if(bookInfo)S.books[book].info={title:bookInfo.title||book,author:bookInfo.author||au,about:bookInfo.about||''}}
+  {const au=document.getElementById('t-author').value.trim();if(au)S.books[book].author=au;
+   if(bookInfo)S.books[book].info={title:bookInfo.title||book,author:bookInfo.author||au,about:bookInfo.about||'',found:bookInfo.found};
+   if(capturedPages.length){if(!S.books[book].captured)S.books[book].captured=[];capturedPages.forEach(x=>S.books[book].captured.push({page:x.page,date:new Date().toISOString(),excerpt:(x.text||'').slice(0,160)}))}}
   S.books[book].lastDate=new Date().toISOString();
   if(chapter&&!S.books[book].chapters.includes(chapter))S.books[book].chapters.push(chapter);
   if(pgFrom&&pgTo){S.books[book].pages.push({from:pgFrom,to:pgTo});S.books[book].totalPages+=Math.max(0,pgTo-pgFrom+1)}
@@ -1315,7 +1424,7 @@ function finishQuiz(passed,score){
     S.sessions++;S.pts+=partialPts;
     const today=new Date();if(S.lastDate){const last=new Date(S.lastDate),yd=new Date(today);yd.setDate(yd.getDate()-1);if(last.toDateString()===yd.toDateString())S.streak++;else if(last.toDateString()!==today.toDateString())S.streak=1}else S.streak=1;S.maxStreak=Math.max(S.maxStreak||0,S.streak);
     S.lastDate=today.toDateString();S.todayDone=true;
-    S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:partialPts,dur:chosenMin,quizScore:score,verified:!!pageAI,summary:pageAI?pageAI.summary:null});
+    S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:partialPts,dur:chosenMin,quizScore:score,verified:capturedPages.length>0,pages:capturedPages.map(x=>x.page),summary:pageAI?pageAI.summary:null});
     save();
     timeLeft=DURATION;updateTimer();
     document.getElementById('t-btn').innerHTML='🔄 ابدأ جلسة أخرى';document.getElementById('t-btn').disabled=false;document.getElementById('t-btn').className='btn btn-o';document.getElementById('t-btn').onclick=newSession;
@@ -1334,7 +1443,9 @@ function finishUnverified(){
   if(!S.books)S.books={};
   if(!S.books[book])S.books[book]={sessions:0,pages:[],chapters:[],totalPages:0,firstDate:new Date().toISOString()};
   S.books[book].sessions++;
-  {const au=document.getElementById('t-author').value.trim();if(au)S.books[book].author=au;if(bookInfo)S.books[book].info={title:bookInfo.title||book,author:bookInfo.author||au,about:bookInfo.about||''}}S.books[book].lastDate=new Date().toISOString();
+  {const au=document.getElementById('t-author').value.trim();if(au)S.books[book].author=au;
+   if(bookInfo)S.books[book].info={title:bookInfo.title||book,author:bookInfo.author||au,about:bookInfo.about||'',found:bookInfo.found};
+   if(capturedPages.length){if(!S.books[book].captured)S.books[book].captured=[];capturedPages.forEach(x=>S.books[book].captured.push({page:x.page,date:new Date().toISOString(),excerpt:(x.text||'').slice(0,160)}))}}S.books[book].lastDate=new Date().toISOString();
   if(chapter&&!S.books[book].chapters.includes(chapter))S.books[book].chapters.push(chapter);
   if(pgFrom&&pgTo){S.books[book].pages.push({from:pgFrom,to:pgTo});S.books[book].totalPages+=Math.max(0,pgTo-pgFrom+1)}
   const basePts=Math.max(3,Math.round(chosenMin/15*3));
@@ -1357,7 +1468,7 @@ function newSession(){
   document.getElementById('t-ai-status').style.display='none';
   document.getElementById('cover-status').style.display='none';
   document.querySelectorAll('.dur-btn').forEach(b=>b.disabled=false);
-  captureAt=null;captureState='none';pageAI=null;pageAIPromise=null;
+  captureAt=null;captureState='none';pageAI=null;pageAIPromise=null;capturedPages=[];captureFails=0;
   timeLeft=DURATION;updateTimer();
   const b=document.getElementById('t-btn');b.innerHTML='▶ ابدأ جلسة القراءة';b.className='btn btn-g';b.onclick=toggleTimer;
   document.getElementById('t-lbl').textContent='جاهز للبدء';
@@ -1386,7 +1497,7 @@ function awardSession(aiScore){
   if(S.streak>=7)S.pts+=5;
   S.maxStreak=Math.max(S.maxStreak||0,S.streak);
   S.lastDate=today.toDateString();S.todayDone=true;
-  S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:earnedPts,dur:chosenMin,verified:!!pageAI,summary:pageAI?pageAI.summary:null,quizScore:aiScore||0});
+  S.log.unshift({book,chapter,pgFrom,pgTo,date:today.toISOString(),pts:earnedPts,dur:chosenMin,verified:capturedPages.length>0,pages:capturedPages.map(x=>x.page),summary:pageAI?pageAI.summary:null,quizScore:aiScore||0});
   save();confetti();
   timeLeft=DURATION;updateTimer();
   document.getElementById('t-btn').innerHTML='🔄 ابدأ جلسة أخرى';document.getElementById('t-btn').disabled=false;document.getElementById('t-btn').className='btn btn-o';document.getElementById('t-btn').onclick=newSession;
@@ -1397,7 +1508,7 @@ function awardSession(aiScore){
   document.getElementById('t-pg-from').disabled=true;
   document.getElementById('t-pg-to').disabled=true;
   refreshAll();showToast('🎉 +'+earnedPts+' نقطة — أحسنت!');
-  populateBookHistory();checkBadges();
+  populateBookHistory();checkBadges();goalCheck();
 }
 
 // ======== JOURNAL ========
@@ -1441,9 +1552,25 @@ function renderBadges(){
   document.getElementById('badge-count').textContent=`${Object.keys(earned).length} / ${BADGES.length}`;
 }
 
+// ======== DAILY GOAL ========
+function goalCheck(){if(!S.goal)return;const t=todayStats();const cur=S.goal.type==='pages'?t.pg:t.min;if(cur>=S.goal.value&&!S._goalToast){S._goalToast=1;setTimeout(()=>showToast('🎯 أنجزت هدفك اليومي!'),1500)}}
+function todayStats(){const t=new Date().toDateString();let min=0,pg=0;(S.log||[]).forEach(l=>{if(new Date(l.date).toDateString()===t){min+=(l.dur||15);pg+=l.pgFrom&&l.pgTo?Math.max(0,l.pgTo-l.pgFrom+1):0}});return{min,pg}}
+function renderGoal(){
+  const g=S.goal;const el=document.getElementById('goal-body');if(!el)return;
+  if(!g){el.innerHTML='<div style="font-size:12.5px;color:var(--tx3);line-height:1.7">حدّد هدفاً يومياً (دقائق أو صفحات) لمتابعة تقدّمك كل يوم.</div>';return}
+  const t=todayStats();const cur=g.type==='pages'?t.pg:t.min;const pct=Math.min(100,Math.round(cur/g.value*100));
+  el.innerHTML=`<div style="display:flex;justify-content:space-between;font-family:var(--ff);font-size:12px;font-weight:600;margin-bottom:6px"><span>${cur} / ${g.value} ${g.type==='pages'?'صفحة':'دقيقة'}</span><span style="color:${pct>=100?'var(--ok)':'var(--g1)'}">${pct>=100?'✅ أنجزت هدف اليوم':pct+'%'}</span></div><div style="height:10px;background:var(--sf2);border-radius:5px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct>=100?'var(--ok)':'linear-gradient(90deg,var(--g1),var(--accent))'};border-radius:5px;transition:width .4s"></div></div>`;
+}
+function setGoal(){
+  const type=confirm('هل تريد هدفاً بالدقائق؟\n(موافق = دقائق، إلغاء = صفحات)')?'min':'pages';
+  const v=parseInt(prompt(type==='min'?'كم دقيقة قراءة يومياً؟':'كم صفحة يومياً؟',S.goal?S.goal.value:(type==='min'?20:10)));
+  if(!v||v<=0){if(S.goal&&confirm('إلغاء الهدف اليومي؟')){S.goal=null;save();renderGoal()}return}
+  S.goal={type,value:v};save();renderGoal();showToast('🎯 تم ضبط الهدف اليومي');
+}
+
 // ======== STATS ========
 function renderStats(){
-  const now=new Date();const wk=new Date(now);wk.setDate(now.getDate()-6);wk.setHours(0,0,0,0);
+  const now=new Date();const wk=new Date(now);wk.setHours(0,0,0,0);wk.setDate(wk.getDate()-((now.getDay()+6)%7));
   const mo=new Date(now.getFullYear(),now.getMonth(),1);
   let wkMin=0,wkPg=0,moMin=0,moSes=0;
   (S.log||[]).forEach(l=>{const d=new Date(l.date);const pg=l.pgFrom&&l.pgTo?Math.max(0,l.pgTo-l.pgFrom+1):0;
@@ -1454,6 +1581,16 @@ function renderStats(){
   document.getElementById('st-mo-min').textContent=moMin;
   document.getElementById('st-mo-ses').textContent=moSes;
 }
+
+// ======== UNREAD MESSAGES BADGE ========
+async function pollUnread(){
+  if(!uid||!S.partnerId||mode!=='emp')return;
+  try{const q=await db.collection('messages').where('to','==',uid).where('read','==',false).limit(20).get();
+    const n=q.size;const tab=document.querySelector('.tab-item[data-pg="partner"] .tab-icon');
+    if(tab){tab.style.position='relative';let b=tab.querySelector('.unread');if(n){if(!b){b=document.createElement('span');b.className='unread';b.style.cssText='position:absolute;top:-4px;left:-6px;background:var(--err);color:#fff;font-size:9px;font-family:var(--ff);font-weight:700;border-radius:9px;padding:1px 5px';tab.appendChild(b)}b.textContent=n}else if(b)b.remove()}
+  }catch(e){}
+}
+setInterval(pollUnread,30000);
 
 // ======== SHARE ========
 async function shareText(title,text){
@@ -1487,26 +1624,28 @@ function refreshAll(){
   document.getElementById('rp-pct').textContent=Math.round(pct)+'%';
   document.getElementById('rp-text').textContent=`${S.sessions%GOAL} من ${GOAL} جلسة`;
   // Week
-  renderWeek();renderChart();renderBoard();renderRewards();renderLog();renderProfile();renderStats();renderBadges();renderJournal();
+  renderWeek();renderChart();renderBoard();renderRewards();renderMyRedemptions();renderLog();renderProfile();renderStats();renderBadges();renderJournal();renderGoal();pollUnread();
   populateBookHistory();
 }
 
 function renderWeek(){
-  const d=['أحد','إثن','ثلا','أرب','خمي','جمع','سبت'];
-  const today=new Date().getDay();
+  const d=['إثن','ثلا','أرب','خمي','جمع','سبت','أحد'];
+  const jsDay=new Date().getDay();const today=(jsDay+6)%7; // Monday=0
+  const activeDays=new Set((S.log||[]).map(l=>new Date(l.date).toDateString()));
+  const monday=new Date();monday.setHours(0,0,0,0);monday.setDate(monday.getDate()-today);
   document.getElementById('week-grid').innerHTML=d.map((l,i)=>{
+    const day=new Date(monday);day.setDate(monday.getDate()+i);
     let cls='future';
-    if(i<today)cls=i>=today-S.streak?'done':'future';
-    else if(i===today)cls=S.todayDone?'done':'today';
+    if(activeDays.has(day.toDateString()))cls='done';else if(i===today)cls='today';
     return`<div class="wk-day"><div class="wk-lbl">${l}</div><div class="wk-dot ${cls}">${cls==='done'?'✓':''}</div></div>`;
   }).join('');
 }
 
 function renderChart(){
-  const d=['سبت','أحد','إثن','ثلا','أرب','خمي','جمع'];
+  const d=['إثن','ثلا','أرب','خمي','جمع','سبت','أحد'];
   const vals=[0,0,0,0,0,0,0];
   const now=new Date();const weekAgo=new Date(now);weekAgo.setDate(now.getDate()-6);weekAgo.setHours(0,0,0,0);
-  (S.log||[]).forEach(l=>{const dt=new Date(l.date);if(dt>=weekAgo){const i=(dt.getDay()+1)%7;vals[i]++}});
+  (S.log||[]).forEach(l=>{const dt=new Date(l.date);if(dt>=weekAgo){const i=(dt.getDay()+6)%7;vals[i]++}});
   const mx=Math.max(...vals,1);
   document.getElementById('week-chart').innerHTML=d.map((l,i)=>`<div class="chart-col"><div class="chart-val">${vals[i]}</div><div class="chart-bar" style="height:${vals[i]/mx*100}%"></div><div class="chart-lbl">${l}</div></div>`).join('');
 }
@@ -1525,20 +1664,29 @@ async function renderBoard(full){
 function renderRewards(){
   document.getElementById('rw-bal').textContent=S.pts;
   if(!REWARDS.length){document.getElementById('rw-list').innerHTML='<div class="empty"><div class="empty-icon">🎁</div><div class="empty-txt">لم يضف المدير مكافآت بعد</div></div>';return}
-  document.getElementById('rw-list').innerHTML=REWARDS.map(r=>{const out=(r.qty||0)<=0;return`<div class="rw-card"><div class="rw-icon" style="background:${r.bg}">${r.icon}</div><div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc||''}</div><div class="rw-cost">${r.cost} نقطة${out?' · نفدت':''}</div></div><button class="btn-xs ${S.pts>=r.cost&&!out?'btn-g':'btn-o'}" ${S.pts<r.cost||out?'disabled':''} onclick="redeem('${r.id}')">استبدال</button></div>`}).join('');
+  document.getElementById('rw-list').innerHTML=REWARDS.map(r=>{const out=(r.qty||0)<=0;return`<div class="rw-card">${r.img?`<img src="${r.img}" class="rw-icon" style="object-fit:cover">`:`<div class="rw-icon" style="background:${r.bg}">${r.icon}</div>`}<div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc||''}</div><div class="rw-cost">${r.cost} نقطة${out?' · نفدت':''}</div></div><button class="btn-xs ${S.pts>=r.cost&&!out?'btn-g':'btn-o'}" ${S.pts<r.cost||out?'disabled':''} onclick="redeem('${r.id}')">استبدال</button></div>`}).join('');
 }
 
+async function renderMyRedemptions(){
+  const c=document.getElementById('my-redeem');if(!c||!uid)return;
+  try{
+    const q=await db.collection('redemptions').where('uid','==',uid).limit(50).get();
+    const reqs=q.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10);
+    c.innerHTML=reqs.length?reqs.map(r=>`<div class="list-item"><div class="li-icon" style="background:${r.status==='done'?'var(--ok-l)':'var(--warn-l)'}">${r.status==='done'?'✅':'🎁'}</div><div class="li-body"><div class="li-title">${r.rewardName}</div><div class="li-sub">${r.status==='done'?'تم الاستلام':'بانتظار التسليم — أعطِ المدير رمز الاستلام'}</div></div>${r.status==='done'?'':`<div class="li-end" dir="ltr" style="font-family:var(--ff);letter-spacing:2px;color:var(--g1)">${r.code||'—'}</div>`}</div>`).join(''):'<div style="font-size:12px;color:var(--tx3)">لا توجد طلبات بعد</div>';
+  }catch(e){console.error(e);c.innerHTML=''}
+}
 async function redeem(id){
   const r=REWARDS.find(x=>x.id===id);
   if(!r||S.pts<r.cost||(r.qty||0)<=0)return;
   S.pts-=r.cost;S.redeemed.push({name:r.name,date:new Date().toISOString()});
   save();
   try{
-    await db.collection('redemptions').add({uid,orgId:S.orgId,userName:S.name,rewardId:id,rewardName:r.name,cost:r.cost,date:new Date().toISOString(),status:'pending'});
+    const code=String(Math.floor(100000+Math.random()*900000));
+    await db.collection('redemptions').add({uid,orgId:S.orgId,userName:S.name,rewardId:id,rewardName:r.name,cost:r.cost,date:new Date().toISOString(),status:'pending',code});
     await db.collection('rewards').doc(id).update({qty:firebase.firestore.FieldValue.increment(-1)});
     await loadRewards();
   }catch(e){console.error(e)}
-  refreshAll();confetti();showToast('🎉 تم طلب: '+r.name+' — سيتواصل معك المدير');
+  refreshAll();confetti();showToast('🎉 تم طلب: '+r.name+' — رمز الاستلام في «طلباتي»');renderMyRedemptions();
 }
 
 function renderLog(){
@@ -1546,7 +1694,7 @@ function renderLog(){
   if(!S.log.length){c.innerHTML='<div class="empty"><div class="empty-icon">📖</div><div class="empty-txt">ابدأ أول جلسة قراءة</div></div>';return}
   c.innerHTML=S.log.slice(0,50).map(s=>{
     const d=new Date(s.date);
-    const vBadge=s.verified?`<span style="background:var(--g1);color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">📸 موثّقة</span>`:(s.skipped?`<span style="background:var(--tx3);color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">غير موثّقة</span>`:'');
+    const vBadge=s.verified?`<span style="background:var(--g1);color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">📸 موثّقة${s.pages&&s.pages.length?' ص'+s.pages.join('،'):''}</span>`:(s.skipped?`<span style="background:var(--tx3);color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">غير موثّقة</span>`:'');
     const aiBadge=vBadge+(s.quizScore?`<span style="background:${s.quizScore>=3?'var(--ok)':'var(--warn)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">🤖 ${s.quizScore}/5</span>`:(s.aiScore?`<span style="background:${s.aiScore>=7?'var(--ok)':'var(--warn)'};color:#fff;padding:1px 6px;border-radius:8px;font-size:9px;font-family:var(--ff);margin-right:4px">🤖 ${s.aiScore}/10</span>`:''));
     const chapInfo=s.chapter?` · ${s.chapter}`:'';
     const pgInfo=s.pgFrom&&s.pgTo?` · ص${s.pgFrom}–${s.pgTo}`:'';
@@ -1575,14 +1723,14 @@ async function renderAdminHome(){
   const now=new Date();const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
   const weekAgo=new Date(now);weekAgo.setDate(now.getDate()-6);weekAgo.setHours(0,0,0,0);
   let monthSessions=0,totalMin=0;const vals=[0,0,0,0,0,0,0];let activeWeek=0;
-  users.forEach(u=>{let act=false;(u.log||[]).forEach(l=>{const dt=new Date(l.date);totalMin+=(l.dur||15);if(dt>=monthStart)monthSessions++;if(dt>=weekAgo){vals[(dt.getDay()+1)%7]++;act=true}});if(act)activeWeek++});
+  users.forEach(u=>{let act=false;(u.log||[]).forEach(l=>{const dt=new Date(l.date);totalMin+=(l.dur||15);if(dt>=monthStart)monthSessions++;if(dt>=weekAgo){vals[(dt.getDay()+6)%7]++;act=true}});if(act)activeWeek++});
   const grid=document.querySelector('#pg-adm-home .admin-stat-grid');
   grid.innerHTML=`
     <div class="ad-stat"><div class="ad-stat-val">${users.length}</div><div class="ad-stat-lbl">${TL().member}</div></div>
     <div class="ad-stat"><div class="ad-stat-val">${monthSessions}</div><div class="ad-stat-lbl">جلسة هذا الشهر</div></div>
     <div class="ad-stat"><div class="ad-stat-val">${(totalMin/60).toFixed(0)}<span style="font-size:14px"> ساعة</span></div><div class="ad-stat-lbl">إجمالي القراءة</div></div>
     <div class="ad-stat"><div class="ad-stat-val">${users.length?Math.round(activeWeek/users.length*100):0}%</div><div class="ad-stat-lbl">نشطون هذا الأسبوع</div></div>`;
-  const d=['سبت','أحد','إثن','ثلا','أرب','خمي','جمع'];const mx=Math.max(...vals,1);
+  const d=['إثن','ثلا','أرب','خمي','جمع','سبت','أحد'];const mx=Math.max(...vals,1);
   document.getElementById('adm-chart').innerHTML=d.map((l,i)=>`<div class="chart-col"><div class="chart-val">${vals[i]}</div><div class="chart-bar" style="height:${vals[i]/mx*100}%"></div><div class="chart-lbl">${l}</div></div>`).join('');
   document.getElementById('adm-top').innerHTML=users.slice(0,5).map((u,i)=>{const a=avOf(u);return`<div class="emp-row"><div class="rank-num ${['rank-1','rank-2','rank-3'][i]||''}">${i+1}</div><div class="emp-avatar" style="background:${a.bg}">${a.av}</div><div class="emp-info"><div class="emp-name">${u.name}</div><div class="emp-meta">${u.sessions||0} جلسة · ${u.pts||0} نقطة</div></div><div class="emp-badge active">نشط</div></div>`}).join('')||'<div class="empty"><div class="empty-txt">لا يوجد موظفون بعد</div></div>';
 }
@@ -1600,7 +1748,7 @@ async function renderAdminRewards(){
   try{await loadRewards()}catch(e){console.error(e)}
   const c=document.getElementById('adm-rw-list');
   if(!REWARDS.length){c.innerHTML=`<div class="empty"><div class="empty-icon">🎁</div><div class="empty-txt">لا توجد مكافآت بعد</div><button class="btn btn-o btn-sm mt-16" onclick="seedRewards()">إضافة المكافآت الافتراضية</button></div>`}
-  else c.innerHTML=REWARDS.map(r=>`<div class="rw-card"><div class="rw-icon" style="background:${r.bg}">${r.icon}</div><div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc||''}</div><div class="rw-cost">${r.cost} نقطة · متاح: ${r.qty}</div></div><button class="btn-xs btn-o" onclick="removeReward('${r.id}')" style="color:var(--err);border-color:var(--err)">حذف</button></div>`).join('');
+  else c.innerHTML=REWARDS.map(r=>`<div class="rw-card">${r.img?`<img src="${r.img}" class="rw-icon" style="object-fit:cover">`:`<div class="rw-icon" style="background:${r.bg}">${r.icon}</div>`}<div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc||''}</div><div class="rw-cost">${r.cost} نقطة · متاح: ${r.qty}</div></div><button class="btn-xs btn-o" onclick="removeReward('${r.id}')" style="color:var(--err);border-color:var(--err)">حذف</button></div>`).join('');
   // Redemption requests
   try{
     const q=await db.collection('redemptions').where('orgId','==',scopeOrg()).limit(200).get();
@@ -1608,13 +1756,19 @@ async function renderAdminRewards(){
     document.getElementById('adm-redeem').innerHTML=reqs.length?reqs.map(r=>`<div class="list-item"><div class="li-icon" style="background:${r.status==='done'?'var(--ok-l)':'var(--warn-l)'}">${r.status==='done'?'✅':'📬'}</div><div class="li-body"><div class="li-title">${r.userName}</div><div class="li-sub">${r.rewardName} · ${r.cost} نقطة · ${new Date(r.date).toLocaleDateString('ar-AE',{day:'numeric',month:'short'})}</div></div>${r.status==='done'?'<div class="li-end" style="color:var(--ok);font-size:11px">تم التسليم</div>':`<button class="btn-xs btn-g" onclick="markDelivered('${r.id}')">تم التسليم</button>`}</div>`).join(''):`<div class="empty"><div class="empty-icon">📬</div><div class="empty-txt">لا توجد طلبات استبدال حالياً</div></div>`;
   }catch(e){console.error(e)}
 }
-async function markDelivered(id){await db.collection('redemptions').doc(id).update({status:'done'});renderAdminRewards();showToast('✅ تم تحديث الطلب')}
+async function markDelivered(id){
+  const snap=await db.collection('redemptions').doc(id).get();const r=snap.data()||{};
+  if(r.code){const entered=prompt(`أدخل رمز الاستلام الذي يعرضه ${r.userName||'المستخدم'} على هاتفه (6 أرقام):`);if(entered===null)return;if(entered.trim()!==r.code){showToast('⚠️ الرمز غير صحيح');return}}
+  await db.collection('redemptions').doc(id).update({status:'done',deliveredAt:new Date().toISOString()});renderAdminRewards();showToast('✅ تم التسليم وتأكيد الاستلام');
+}
 async function seedRewards(){
   const batch=db.batch();
   DEFAULT_REWARDS.forEach(r=>batch.set(db.collection('rewards').doc(),{...r,orgId:scopeOrg()}));
   await batch.commit();renderAdminRewards();showToast('تمت إضافة المكافآت');
 }
 
+let newRwImg=null;
+async function onRwImage(inp){const f=inp.files&&inp.files[0];if(!f)return;try{newRwImg=await shrinkImage(f,320);const p=document.getElementById('new-rw-prev');p.src=newRwImg;p.style.display='block'}catch(e){showToast('تعذّر قراءة الصورة')}}
 function toggleAddRw(){const f=document.getElementById('add-rw-form');f.style.display=f.style.display==='none'?'block':'none'}
 
 async function addReward(){
@@ -1624,10 +1778,10 @@ async function addReward(){
   const q=parseInt(document.getElementById('new-rw-qty').value)||0;
   if(!n||!p){showToast('أدخل الاسم والنقاط');return}
   const icons=['🎁','📦','🎫','🏆','💎'];
-  await db.collection('rewards').add({orgId:scopeOrg(),name:n,desc:d,cost:p,qty:q,icon:icons[Math.floor(Math.random()*icons.length)],bg:AV_BGS[Math.floor(Math.random()*AV_BGS.length)]});
+  await db.collection('rewards').add({orgId:scopeOrg(),name:n,desc:d,cost:p,qty:q,img:newRwImg||null,icon:icons[Math.floor(Math.random()*icons.length)],bg:AV_BGS[Math.floor(Math.random()*AV_BGS.length)]});
   toggleAddRw();renderAdminRewards();showToast('تمت إضافة المكافأة');
   document.getElementById('new-rw-name').value='';document.getElementById('new-rw-desc').value='';
-  document.getElementById('new-rw-pts').value='';document.getElementById('new-rw-qty').value='';
+  document.getElementById('new-rw-pts').value='';document.getElementById('new-rw-qty').value='';newRwImg=null;document.getElementById('new-rw-prev').style.display='none';document.getElementById('new-rw-img').value='';
 }
 
 async function removeReward(id){
@@ -1699,12 +1853,15 @@ function renderBooks(){
       <div class="book-prog-head">
         <div class="book-prog-icon" style="background:var(--ok-l)">📖</div>
         <div class="book-prog-info">
-          <div class="book-prog-title">${name}</div>
+          <div class="book-prog-title">${(b.info&&b.info.title)||name}</div>
+          ${(b.info&&b.info.author)||b.author?`<div class="book-prog-meta">✍️ ${(b.info&&b.info.author)||b.author}${b.info&&b.info.found?' · 🌐 معروف':''}</div>`:''}
           <div class="book-prog-meta">${sessionsInBook} جلسة · ${pagesRead} صفحة · آخر قراءة: ${lastD}</div>
         </div>
       </div>
+      ${b.info&&b.info.about?`<div style="font-size:12px;color:var(--tx2);line-height:1.7;margin-top:8px">${b.info.about}</div>`:''}
       ${b.chapters.length?`<div class="book-prog-chapters">${chapTags}</div>`:''}
       ${pageRanges?`<div style="font-size:10px;color:var(--tx3);margin-top:6px">📄 ${pageRanges}</div>`:''}
+      ${(b.captured||[]).length?`<div style="margin-top:8px"><div style="font-family:var(--ff);font-size:11px;font-weight:700;color:var(--g1);margin-bottom:4px">📸 الصفحات الموثّقة (${b.captured.length})</div>${b.captured.slice(-6).reverse().map(c=>`<div class="journal-quote" style="margin-top:4px"><b>ص${c.page}</b> · ${new Date(c.date).toLocaleDateString('ar-AE',{day:'numeric',month:'short'})}<br>${c.excerpt||''}${c.excerpt&&c.excerpt.length>=160?'…':''}</div>`).join('')}</div>`:''}
       <div style="margin-top:10px"><button class="btn-xs btn-o" onclick="showPage('log')">عرض الجلسات</button></div>
     </div>`;
   }).join('');
@@ -1757,6 +1914,11 @@ async function renderPartner(){
       </div>
     </div>
     <div class="card">
+      <div class="card-head"><div class="card-title">💬 محادثة مع ${partner.name}</div></div>
+      <div id="chat-box" style="max-height:260px;overflow-y:auto;padding:4px 0"></div>
+      <div style="display:flex;gap:6px;margin-top:8px"><input id="chat-inp" placeholder="اكتب رسالة..." style="flex:1;min-width:0;padding:10px 12px;border:2px solid var(--bdr);border-radius:20px;font-family:inherit;font-size:13px;background:var(--sf);color:var(--tx)" onkeydown="if(event.key==='Enter')sendChat()"><button class="btn-xs btn-g" onclick="sendChat()">إرسال</button></div>
+    </div>
+    <div class="card">
       <div class="card-head"><div class="card-title">جلسات شريكك الأخيرة</div></div>
       ${pLog.length?pLog.map(l=>{const rated=ratings.includes(l.date);return`<div class="partner-summary-card">${fmt(l)}
           ${rated?'<div style="margin-top:8px;font-family:var(--ff);font-size:11px;color:var(--ok);font-weight:600">✅ تم التشجيع</div>':
@@ -1772,18 +1934,53 @@ async function renderPartner(){
       ${myLog.length?myLog.map(l=>`<div class="partner-summary-card">${fmt(l)}</div>`).join(''):`<div class="empty"><div class="empty-icon">✏️</div><div class="empty-txt">أكمل جلسة قراءة لتظهر هنا</div></div>`}
     </div>
     <button class="btn btn-o" style="margin-top:8px" onclick="removePartner()">إلغاء الشراكة</button>`;
+  renderChat();
 }
 
 async function findPartner(){
   try{await loadUsers()}catch(e){console.error(e)}
   const candidates=USERS_CACHE.filter(u=>u.id!==uid&&!u.partnerId);
-  if(!candidates.length){showToast('لا يوجد زملاء متاحون حالياً — جرّب لاحقاً');return}
-  const chosen=candidates[Math.floor(Math.random()*candidates.length)];
+  if(!candidates.length){showToast('لا يوجد زملاء متاحون حالياً');return}
+  const c=document.getElementById('partner-content');
+  c.innerHTML=`<div class="card"><div class="card-title mb-10">اختر شريك قراءة</div>
+    <div class="field"><input id="pt-search" placeholder="🔍 ابحث بالاسم" oninput="renderPartnerList()"></div>
+    <div id="pt-list"></div>
+    <button class="btn btn-o mt-8" onclick="renderPartner()">رجوع</button></div>`;
+  window._ptCands=candidates;renderPartnerList();
+}
+function renderPartnerList(){
+  const q=(document.getElementById('pt-search').value||'').trim();
+  const list=(window._ptCands||[]).filter(u=>!q||(u.name||'').includes(q)).slice(0,30);
+  document.getElementById('pt-list').innerHTML=list.map(u=>{const a=avOf(u);return`<div class="emp-row"><div class="emp-avatar" style="background:${a.bg}">${a.av}</div><div class="emp-info"><div class="emp-name">${u.name}</div><div class="emp-meta">${u.sessions||0} جلسة · سلسلة ${u.streak||0} يوم · ${u.pts||0} نقطة</div></div><button class="btn-xs btn-g" onclick="choosePartner('${u.id}')">اختيار</button></div>`}).join('')||'<div class="empty"><div class="empty-txt">لا نتائج</div></div>';
+}
+async function choosePartner(id){
+  const chosen=(window._ptCands||[]).find(u=>u.id===id);if(!chosen)return;
   S.partnerId=chosen.id;S.partnerName=chosen.name;S.partnerRatings=[];save();
   try{await db.collection('users').doc(chosen.id).update({partnerId:uid,partnerName:S.name})}catch(e){console.error(e)}
+  try{await db.collection('messages').add({orgId:S.orgId,from:uid,to:chosen.id,fromName:S.name,text:'👋 مرحباً! أصبحنا شريكي قراءة — بالتوفيق لنا معاً',date:new Date().toISOString(),read:false})}catch(e){}
   confetti();showToast('🎉 تم ربطك مع '+chosen.name);renderPartner();
 }
-
+// ---- in-app chat with partner ----
+let chatUnsub=[];
+function renderChat(){
+  const box=document.getElementById('chat-box');if(!box||!S.partnerId)return;
+  chatUnsub.forEach(u=>u());chatUnsub=[];
+  const pid=S.partnerId;let mine=[],theirs=[];
+  const paint=()=>{
+    const msgs=[...mine,...theirs].sort((a,b)=>a.date.localeCompare(b.date)).slice(-60);
+    box.innerHTML=msgs.map(m=>`<div style="display:flex;justify-content:${m.from===uid?'flex-start':'flex-end'};margin:4px 0"><div style="max-width:78%;padding:8px 12px;border-radius:14px;font-size:13px;line-height:1.6;background:${m.from===uid?'var(--g1)':'var(--sf2)'};color:${m.from===uid?'#fff':'var(--tx)'}">${m.text.replace(/</g,'&lt;')}<div style="font-size:9px;opacity:.7;margin-top:2px">${new Date(m.date).toLocaleTimeString('ar-AE',{hour:'2-digit',minute:'2-digit'})}</div></div></div>`).join('')||'<div style="font-size:12px;color:var(--tx3);text-align:center">ابدأ المحادثة مع شريكك</div>';
+    box.scrollTop=box.scrollHeight;
+    theirs.filter(m=>!m.read).forEach(m=>db.collection('messages').doc(m.id).update({read:true}).catch(()=>{}));
+  };
+  const onErr=e=>{console.error(e);box.innerHTML='<div style="font-size:12px;color:var(--tx3)">تعذّر تحميل المحادثة</div>'};
+  chatUnsub.push(db.collection('messages').where('from','==',uid).where('to','==',pid).limit(100).onSnapshot(sn=>{mine=sn.docs.map(d=>({id:d.id,...d.data()}));paint()},onErr));
+  chatUnsub.push(db.collection('messages').where('from','==',pid).where('to','==',uid).limit(100).onSnapshot(sn=>{theirs=sn.docs.map(d=>({id:d.id,...d.data()}));paint()},onErr));
+}
+async function sendChat(){
+  const inp=document.getElementById('chat-inp');const t=inp.value.trim();if(!t||!S.partnerId)return;
+  inp.value='';
+  try{await db.collection('messages').add({orgId:S.orgId,from:uid,to:S.partnerId,fromName:S.name,text:t.slice(0,500),date:new Date().toISOString(),read:false})}catch(e){console.error(e);showToast('⚠️ تعذّر الإرسال')}
+}
 function ratePartner(key,emoji){
   if(!S.partnerRatings)S.partnerRatings=[];
   S.partnerRatings.push(key);S.pts+=5;save();refreshAll();renderPartner();
