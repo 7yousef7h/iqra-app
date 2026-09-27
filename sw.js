@@ -1,5 +1,5 @@
 // Service Worker — makes the app installable and work offline
-const CACHE = 'iqra-v18';
+const CACHE = 'kurras-v20';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -26,9 +26,9 @@ self.addEventListener('fetch', e => {
 // ---- Push notifications (FCM web push) ----
 self.addEventListener('push', e => {
   let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { notification: { title: 'اقرأ واكسب', body: e.data && e.data.text() } }; }
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { notification: { title: 'كرّاس', body: e.data && e.data.text() } }; }
   const n = d.notification || (d.data && d.data.notification) || {};
-  const title = n.title || (d.data && d.data.title) || 'اقرأ واكسب';
+  const title = n.title || (d.data && d.data.title) || 'كرّاس';
   const body = n.body || (d.data && d.data.body) || '';
   const link = (d.fcmOptions && d.fcmOptions.link) || (d.data && d.data.link) || './';
   e.waitUntil(self.registration.showNotification(title, { body, icon: './icon-192.png', badge: './icon-192.png', dir: 'rtl', lang: 'ar', data: { link }, vibrate: [200, 100, 200] }));
