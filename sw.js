@@ -1,5 +1,5 @@
 // Service Worker — makes the app installable and work offline
-const CACHE = 'kurras-v20';
+const CACHE = 'kurras-v21';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

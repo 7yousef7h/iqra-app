@@ -396,7 +396,8 @@ html[dir="ltr"] .kpi-table th,html[dir="ltr"] .kpi-table td{text-align:left}
 
 <!-- ===== LOGIN ===== -->
 <div class="screen hidden" id="login">
-  <div class="login-header">
+  <div class="login-header" style="position:relative">
+    <button onclick="toggleLangPre()" style="position:absolute;top:calc(14px + env(safe-area-inset-top,0px));left:16px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:16px;padding:5px 12px;font-family:var(--ff);font-size:12px;font-weight:700;cursor:pointer" id="login-lang">🌐 English</button>
     <div class="login-logo">كرّاس</div>
     <div class="login-tagline" data-ar="سجّل دخولك وابدأ رحلة القراءة">سجّل دخولك وابدأ رحلة القراءة</div>
   </div>
@@ -415,6 +416,8 @@ html[dir="ltr"] .kpi-table th,html[dir="ltr"] .kpi-table td{text-align:left}
       <div class="field"><label data-ar="نوع الحساب">نوع الحساب</label>
         <select id="up-kind" onchange="onKindChange()">
           <option value="org">موظف — بريد مؤسسي</option>
+          <option value="org-join">موظف — لديّ كود المؤسسة</option>
+          <option value="org-new">مدير مؤسسة — إنشاء مؤسسة جديدة</option>
           <option value="school-join">طالب — لديّ كود المدرسة</option>
           <option value="family-join">فرد في عائلة — لديّ كود</option>
           <option value="family-new">وليّ أمر — إنشاء عائلة جديدة</option>
@@ -635,6 +638,11 @@ html[dir="ltr"] .kpi-table th,html[dir="ltr"] .kpi-table td{text-align:left}
         <div id="journal-list"></div>
       </div>
       <div class="card txt-c"><button class="share-btn" onclick="shareProfile()">📤 شارك ملفي القرائي</button></div>
+      <div class="setting-row" id="row-join-org" onclick="joinOrgByCode()">
+        <div class="setting-icon" style="background:var(--ok-l)">🏢</div>
+        <div class="setting-label">الانضمام إلى مؤسسة / مدرسة / عائلة بكود</div>
+        <div class="setting-arrow">‹</div>
+      </div>
       <div class="setting-row" onclick="editDept()">
         <div class="setting-icon" style="background:var(--ok-l)">🏛️</div>
         <div class="setting-label"><span id="pf-dept-lbl">الإدارة / القسم</span>: <b id="pf-dept">—</b></div>
@@ -787,6 +795,13 @@ html[dir="ltr"] .kpi-table th,html[dir="ltr"] .kpi-table td{text-align:left}
         <div id="sup-org-list"></div>
       </div>
     </div>
+    <div class="page" id="pg-sup-users">
+      <div class="card">
+        <div class="card-head"><div class="card-title">جميع الحسابات</div><div class="card-link" id="sup-users-count">0</div></div>
+        <div class="field" style="margin-bottom:12px"><input placeholder="🔍 بحث بالاسم أو البريد" id="sup-search" oninput="renderSuperUsersList()"></div>
+        <div id="sup-users-list"></div>
+      </div>
+    </div>
     <div class="page" id="pg-sup-profile">
       <div class="card">
         <div class="profile-header">
@@ -911,7 +926,7 @@ async function enablePush(){
     showToast(LANG==='en'?'🔔 Notifications enabled':'🔔 تم تفعيل الإشعارات');
   }catch(e){console.error(e);showToast('⚠️ '+(e.message||'تعذّر التفعيل'))}
 }
-try{firebase.messaging().onMessage(p=>{const n=p.notification||{};showToast('🔔 '+(n.title||'')+(n.body?' — '+n.body:''));pollUnread()})}catch(e){}
+try{firebase.messaging().onMessage(p=>{beep();const n=p.notification||{};showToast('🔔 '+(n.title||'')+(n.body?' — '+n.body:''));pollUnread()})}catch(e){}
 async function pushTo(target,title,text,link){
   try{const tk=await auth.currentUser.getIdToken();await fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tk},body:JSON.stringify({...target,title,text,link})})}catch(e){console.warn('push',e)}
 }
@@ -1011,8 +1026,10 @@ function applyLang(){
   document.querySelectorAll('[data-i18n]').forEach(el=>{const k=el.getAttribute('data-i18n');if(!el.dataset.ar)el.dataset.ar=el.textContent;el.textContent=LANG==='en'?(I18N.en[k]||el.dataset.ar):el.dataset.ar});
   translateTree(document.body,true);
 }
-function setLang(l){LANG=l;S.lang=l;save();applyLang();if(document.getElementById('main').classList.contains('hidden'))return;initMain()}
+function setLang(l){LANG=l;S.lang=l;save();try{localStorage.setItem('kurras_lang',l)}catch(e){}applyLang();if(document.getElementById('main').classList.contains('hidden'))return;initMain()}
 function toggleLang(){setLang(LANG==='ar'?'en':'ar')}
+function toggleLangPre(){LANG=LANG==='ar'?'en':'ar';try{localStorage.setItem('kurras_lang',LANG)}catch(e){}applyLang();const b=document.getElementById('login-lang');if(b)b.textContent=LANG==='en'?'🌐 العربية':'🌐 English'}
+try{const pl=localStorage.getItem('kurras_lang');if(pl){LANG=pl;document.addEventListener('DOMContentLoaded',()=>{applyLang();const b=document.getElementById('login-lang');if(b)b.textContent=LANG==='en'?'🌐 العربية':'🌐 English'})}}catch(e){}
 
 // ======== JSON HELPER ========
 function parseAIJSON(text){
@@ -1070,7 +1087,12 @@ function save(){
 }
 async function loadRewards(){
   const q=await db.collection('rewards').where('orgId','==',scopeOrg()).get();
-  REWARDS=q.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>b.cost-a.cost);
+  REWARDS=q.docs.map(d=>({id:d.id,...d.data()}));
+  // families also see the public catalog (super-managed), shown as "عامة"
+  if(mode!=='super'&&S.orgType==='family'&&scopeOrg()!=='individual'){
+    try{const q2=await db.collection('rewards').where('orgId','==','individual').get();REWARDS=REWARDS.concat(q2.docs.map(d=>({id:d.id,...d.data(),isPublic:true})))}catch(e){console.error(e)}
+  }
+  REWARDS.sort((a,b)=>b.cost-a.cost);
 }
 async function loadUsers(){
   const ref=db.collection('users');
@@ -1111,9 +1133,10 @@ auth.onAuthStateChanged(async user=>{
     }
     try{
       await load();
+      if(S.disabled){showToast('⛔ هذا الحساب معطّل — تواصل مع إدارة المنصة');setTimeout(()=>auth.signOut(),1500);return}
       if(!S.name){S.name=user.displayName||'';S.email=user.email;save()}
       if(S.role!=='super')await loadRewards();
-      LANG=S.lang||'ar';applyLang();
+      LANG=S.lang||localStorage.getItem('kurras_lang')||'ar';applyLang();
       mode=S.role==='super'?'super':S.role==='admin'?(S.orgType==='family'?'emp':'admin'):'emp';
       hide('splash');hide('login');hide('verify');show('main');initMain();
     }catch(e){console.error(e);showToast('⚠️ خطأ في تحميل البيانات');hide('splash');show('login')}
@@ -1143,15 +1166,18 @@ function authErr(e){
 }
 function onKindChange(){
   const k=document.getElementById('up-kind').value;
-  document.getElementById('f-code').style.display=(k==='family-join'||k==='school-join')?'block':'none';
-  document.getElementById('f-code-lbl').textContent=k==='school-join'?'كود المدرسة':'كود العائلة';
-  document.getElementById('f-fam').style.display=k==='family-new'?'block':'none';
-  document.getElementById('f-dept').style.display=(k==='org'||k==='school-join')?'block':'none';
+  document.getElementById('f-code').style.display=(k==='family-join'||k==='school-join'||k==='org-join')?'block':'none';
+  document.getElementById('f-code-lbl').textContent=k==='school-join'?'كود المدرسة':k==='org-join'?'كود المؤسسة':'كود العائلة';
+  document.getElementById('f-fam').style.display=(k==='family-new'||k==='org-new')?'block':'none';
+  document.querySelector('#f-fam label').textContent=k==='org-new'?'اسم المؤسسة':'اسم العائلة';
+  document.getElementById('f-dept').style.display=(k==='org'||k==='org-join'||k==='school-join')?'block':'none';
   document.querySelector('#f-dept label').textContent=k==='school-join'?'الصف':'الإدارة / القسم';document.getElementById('up-dept').placeholder=k==='school-join'?'مثال: الصف السابع':'مثال: إدارة الموارد البشرية';
   const H={org:'استخدم بريدك المؤسسي — سيتم ربطك بمؤسستك تلقائياً.',
     'school-join':'اطلب كود المدرسة من معلمك أو أمين المكتبة.',
     'family-join':'اطلب الكود من وليّ الأمر. يمكن للأطفال استخدام بريد وليّ الأمر مع إضافة +اسم (مثال: ahmed+sara@gmail.com).',
     'family-new':'ستصبح مدير العائلة: تضيف المكافآت وتتابع القرّاء وتشارك كود الانضمام.',
+    'org-join':'اطلب كود المؤسسة من مدير برنامج القراءة في مؤسستك.',
+    'org-new':'ستصبح مدير المؤسسة: تضيف المكافآت وتتابع الموظفين وتشارك كود الانضمام. يمكن لإدارة المنصة تفعيل الاشتراك.',
     solo:'حساب فردي: تقرأ وتكسب النقاط وتستبدلها من كتالوج المكافآت العام.'};
   document.getElementById('up-hint').textContent=H[k];
 }
@@ -1167,7 +1193,7 @@ async function doSignup(){
   const p=document.getElementById('up-pass').value;
   const code=document.getElementById('up-code').value.trim().toUpperCase();
   const fam=document.getElementById('up-fam').value.trim();
-  if(!n||!e||!p||((kind==='family-join'||kind==='school-join')&&!code)||(kind==='family-new'&&!fam)){showToast('يرجى تعبئة جميع الحقول');return}
+  if(!n||!e||!p||((kind==='family-join'||kind==='school-join'||kind==='org-join')&&!code)||((kind==='family-new'||kind==='org-new')&&!fam)){showToast('يرجى تعبئة جميع الحقول');return}
   const b=document.getElementById('btn-up');b.disabled=true;b.textContent='جارٍ الإنشاء...';
   try{
     const cred=await auth.createUserWithEmailAndPassword(e,p);
@@ -1175,15 +1201,15 @@ async function doSignup(){
     if(kind==='org'){
       org=await findOrgByDomain(emailDomain(e));
       if(!org||org.active===false){await cred.user.delete();showToast('⚠️ مؤسستك غير مشتركة في المنصة — تواصل مع إدارة المنصة');b.disabled=false;b.textContent='إنشاء الحساب';return}
-    }else if(kind==='family-join'||kind==='school-join'){
+    }else if(kind==='family-join'||kind==='school-join'||kind==='org-join'){
       org=await findFamilyByCode(code);
-      const want=kind==='school-join'?'school':'family';
-      if(!org||org.active===false||org.type!==want){await cred.user.delete();showToast(want==='school'?'⚠️ كود المدرسة غير صحيح':'⚠️ كود العائلة غير صحيح');b.disabled=false;b.textContent='إنشاء الحساب';return}
+      const want=kind==='school-join'?'school':kind==='org-join'?'org':'family';
+      if(!org||org.active===false||(org.type||'org')!==want){await cred.user.delete();showToast('⚠️ الكود غير صحيح');b.disabled=false;b.textContent='إنشاء الحساب';return}
       extra.joinCode=code;
     }else if(kind==='solo'){
       org={id:'individual',name:'قارئ مستقل',type:'individual',active:true};
     }else{
-      const ref=await db.collection('orgs').add({name:fam,type:'family',code:genCode(),domains:[],active:true,ownerUid:cred.user.uid,createdAt:new Date().toISOString()});
+      const ref=await db.collection('orgs').add({name:fam,type:kind==='org-new'?'org':'family',code:genCode(),domains:[],active:true,ownerUid:cred.user.uid,createdAt:new Date().toISOString()});
       const snap=await ref.get();org={id:ref.id,...snap.data()};role='admin';
     }
     await cred.user.updateProfile({displayName:n});
@@ -1222,6 +1248,7 @@ const EMP_TABS=[
 const SUP_TABS=[
   {id:'sup-orgs',icon:'🏢',label:'المؤسسات'},
   {id:'adm-rw',icon:'🎁',label:'الكتالوج العام'},
+  {id:'sup-users',icon:'👥',label:'الحسابات'},
   {id:'sup-profile',icon:'⚙️',label:'الإعدادات'},
 ];
 const ADM_TABS=[
@@ -1246,7 +1273,7 @@ function initMain(){
 }
 function switchMode(){if(S.role!=='admin')return;mode=mode==='emp'?'admin':'emp';initMain();showToast(mode==='emp'?'📖 وضع القارئ':'لوحة الإدارة')}
 
-const PAGE_TITLES={'home':'الرئيسية','timer':'جلسة القراءة','books':'كتبي','partner':'شريك القراءة','rewards':'المكافآت','log':'سجلّي','board':'الترتيب','profile':'حسابي','adm-home':'لوحة التحكم','adm-emp':'الموظفون','adm-emp-fam':'أفراد العائلة','adm-rw':'المكافآت','adm-profile':'الإعدادات','adm-report':'مؤشرات الأداء','sup-orgs':'المؤسسات','sup-profile':'إعدادات المنصة'};
+const PAGE_TITLES={'home':'الرئيسية','timer':'جلسة القراءة','books':'كتبي','partner':'شريك القراءة','rewards':'المكافآت','log':'سجلّي','board':'الترتيب','profile':'حسابي','adm-home':'لوحة التحكم','adm-emp':'الموظفون','adm-emp-fam':'أفراد العائلة','adm-rw':'المكافآت','adm-profile':'الإعدادات','adm-report':'مؤشرات الأداء','sup-orgs':'المؤسسات','sup-users':'إدارة الحسابات','sup-profile':'إعدادات المنصة'};
 
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
@@ -1262,6 +1289,7 @@ function showPage(id){
   if(id==='adm-rw')renderAdminRewards();
   if(id==='adm-report')renderReport();
   if(id==='sup-orgs')renderSuperOrgs();
+  if(id==='sup-users')renderSuperUsers();
   if(id==='adm-profile')renderAdminProfile();
   if(id==='sup-profile')document.getElementById('spf-name').textContent=S.name;
 }
@@ -1368,6 +1396,7 @@ function beep(){
   if(navigator.vibrate)navigator.vibrate([200,100,200,100,400]);
 }
 async function notifyLocal(title,body){
+  beep();
   try{
     if(!('Notification' in window))return;
     if(Notification.permission==='default')await Notification.requestPermission();
@@ -1379,7 +1408,7 @@ async function notifyLocal(title,body){
 }
 function openCapture(final){
   clearInterval(timerInt);running=false;captureFails=0;persistSession();
-  if(!final){beep();notifyLocal('📸 لحظة تحقق','صوّر الصفحة التي تقرأها الآن — المؤقّت متوقف')}
+  if(!final){notifyLocal('📸 لحظة تحقق','صوّر الصفحة التي تقرأها الآن — المؤقّت متوقف')}
   document.getElementById('t-lbl').textContent=final?'📸 التحقق النهائي':'📸 لحظة تحقق';
   const pf=document.getElementById('t-pg-from').value,pt=document.getElementById('t-pg-to').value;
   document.getElementById('cap-sub').innerHTML=final?`انتهت الجلسة. صوّر <b>الصفحة التي وصلت إليها</b> بحيث يظهر <b>رقم الصفحة</b> (النطاق: ص${pf}–${pt}).`:`صوّر الصفحة التي تقرأها <b>الآن</b> بحيث يظهر <b>رقم الصفحة</b> بوضوح (النطاق: ص${pf}–${pt}). ${neededCaptures()>1?`التحقق ${capturedPages.length+1} من ${neededCaptures()}`:''}<br><span style="color:var(--tx3);font-size:12px">المؤقّت متوقف مؤقتاً</span>`;
@@ -1419,6 +1448,7 @@ async function onCapture(inp){
     if(!pn){throw new Error('لم يظهر رقم الصفحة في الصورة — أعد التصوير بحيث يظهر الرقم')}
     if(pn<pf||pn>pt){throw new Error(`الصفحة ${pn} خارج النطاق الذي حدّدته (ص${pf}–${pt}) — صوّر صفحة من النطاق`)}
     if(capturedPages.some(x=>x.page===pn)){throw new Error(`صوّرت الصفحة ${pn} مسبقاً — صوّر صفحة أخرى`)}
+    {const bk=S.books&&S.books[document.getElementById('t-book').value.trim()];if(bk&&(bk.captured||[]).some(c=>c.page===pn))throw new Error(`الصفحة ${pn} موثّقة في جلسة سابقة — صوّر صفحة لم توثّقها من قبل`)}
     capturedPages.push({page:pn,text:r.text||''});
     if(finalPending){setAIStatus(`✅ التحقق النهائي: الصفحة ${pn}`);showToast('✅ صفحة '+pn);setTimeout(afterFinalCapture,500);return}
     captureAt.shift();persistSession();
@@ -1471,6 +1501,17 @@ async function onCover(inp){
     st.textContent=`✅ ${j.title||''}${j.author?' — '+j.author:''}${j.found?' · 🌐 معروف (تحقق واحد)':' · غير متاح على الإنترنت (3 تحققات)'}`;
   }catch(e){console.error(e);st.textContent='⚠️ تعذّر التعرف على الغلاف: '+e.message}
 }
+async function joinOrgByCode(){
+  const code=(prompt('أدخل كود الانضمام (6 أحرف):')||'').trim().toUpperCase();if(!code)return;
+  try{
+    const org=await findFamilyByCode(code);
+    if(!org||org.active===false){showToast('⚠️ الكود غير صحيح');return}
+    if(!confirm(`الانضمام إلى «${org.name}»؟ سيصبح ترتيبك ومكافآتك ضمن هذه الجهة.`))return;
+    S.orgId=org.id;S.orgName=org.name;S.orgType=org.type||'org';S.joinCode=code;S.partnerId=null;S.partnerName='';
+    const {todayDone,...data}=S;await db.collection('users').doc(uid).set(data,{merge:true});
+    showToast('✅ تم الانضمام إلى '+org.name);setTimeout(()=>location.reload(),800);
+  }catch(e){console.error(e);showToast('⚠️ تعذّر الانضمام: '+e.message)}
+}
 function editDept(){if(S.orgType==='family'||S.orgType==='individual'){showToast('غير مطلوب لهذا النوع من الحسابات');return}const v=prompt(groupLabel(),S.dept||'');if(v===null)return;S.dept=v.trim();save();document.getElementById('pf-dept').textContent=S.dept||'—'}
 function cycleLevel(){const L=['مبتدئ','متوسط','متقدم'];S.level=L[(L.indexOf(S.level||'متوسط')+1)%3];save();document.getElementById('pf-level').textContent=S.level;showToast('مستوى الأسئلة: '+S.level)}
 
@@ -1488,7 +1529,7 @@ function updateTimer(){
 }
 function endSession(){
   clearInterval(timerInt);running=false;keepAwake(false);
-  beep();notifyLocal('⏰ انتهت جلسة القراءة','صوّر الصفحة الأخيرة ثم أجب عن الأسئلة');
+  notifyLocal('⏰ انتهت جلسة القراءة','صوّر الصفحة الأخيرة ثم أجب عن الأسئلة');
   if(captureState==='skipped'){captureAt=null;clearSession();finishUnverified();return}
   // final verification photo at the end of every session
   finalPending=true;captureAt=[];openCapture(true);
@@ -1906,7 +1947,7 @@ async function renderBoard(full){
 function renderRewards(){
   document.getElementById('rw-bal').textContent=S.pts;
   if(!REWARDS.length){document.getElementById('rw-list').innerHTML='<div class="empty"><div class="empty-icon">🎁</div><div class="empty-txt">لم يضف المدير مكافآت بعد</div></div>';return}
-  document.getElementById('rw-list').innerHTML=REWARDS.map(r=>{const out=(r.qty||0)<=0;return`<div class="rw-card">${r.img?`<img src="${r.img}" class="rw-icon" style="object-fit:cover">`:`<div class="rw-icon" style="background:${r.bg}">${r.icon}</div>`}<div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc||''}</div><div class="rw-cost">${r.cost} نقطة${out?' · نفدت':''}</div></div><button class="btn-xs ${S.pts>=r.cost&&!out?'btn-g':'btn-o'}" ${S.pts<r.cost||out?'disabled':''} onclick="redeem('${r.id}')">استبدال</button></div>`}).join('');
+  document.getElementById('rw-list').innerHTML=REWARDS.map(r=>{const out=(r.qty||0)<=0;return`<div class="rw-card">${r.img?`<img src="${r.img}" class="rw-icon" style="object-fit:cover">`:`<div class="rw-icon" style="background:${r.bg}">${r.icon}</div>`}<div class="rw-body"><div class="rw-name">${r.name}</div><div class="rw-desc">${r.desc||''}</div><div class="rw-cost">${r.cost} نقطة${out?' · نفدت':''}${r.isPublic?' · <span style="color:var(--g1)">عامة</span>':(S.orgType==='family'?' · خاصة بالعائلة':'')}</div></div><button class="btn-xs ${S.pts>=r.cost&&!out?'btn-g':'btn-o'}" ${S.pts<r.cost||out?'disabled':''} onclick="redeem('${r.id}')">استبدال</button></div>`}).join('');
 }
 
 async function renderMyRedemptions(){
@@ -1924,12 +1965,12 @@ async function redeem(id){
   save();
   try{
     const code=String(Math.floor(100000+Math.random()*900000));
-    await db.collection('redemptions').add({uid,orgId:S.orgId,userName:S.name,rewardId:id,rewardName:r.name,cost:r.cost,date:new Date().toISOString(),status:'pending',code});
+    await db.collection('redemptions').add({uid,orgId:r.isPublic?'individual':S.orgId,userOrgId:S.orgId,userName:S.name,rewardId:id,rewardName:r.name,cost:r.cost,date:new Date().toISOString(),status:'pending',code});
     await db.collection('rewards').doc(id).update({qty:firebase.firestore.FieldValue.increment(-1)});
     await loadRewards();
   }catch(e){console.error(e)}
   refreshAll();confetti();showToast('🎉 تم طلب: '+r.name+' — رمز الاستلام في «طلباتي»');renderMyRedemptions();
-  pushTo({toAdmins:true,toOrg:S.orgId},'🎁 طلب استبدال جديد',S.name+' — '+r.name,'/#adm-rw');
+  pushTo({toAdmins:true,toOrg:r.isPublic?'individual':S.orgId},'🎁 طلب استبدال جديد',S.name+' — '+r.name,'/#adm-rw');
 }
 
 function renderLog(){
@@ -1950,7 +1991,7 @@ function renderProfile(){
   document.getElementById('pf-name').textContent=S.name||'—';
   document.getElementById('pf-role').textContent=S.orgType==='individual'?'قارئ مستقل':(S.orgName||'—');
   const lv=document.getElementById('pf-level');if(lv)lv.textContent=S.level||'متوسط';
-  const dp=document.getElementById('pf-dept');if(dp)dp.textContent=S.dept||'—';const dl=document.getElementById('pf-dept-lbl');if(dl)dl.textContent=groupLabel();
+  const dp=document.getElementById('pf-dept');if(dp)dp.textContent=S.dept||'—';const rj=document.getElementById('row-join-org');if(rj)rj.style.display=S.orgType==='individual'?'flex':'none';const dl=document.getElementById('pf-dept-lbl');if(dl)dl.textContent=groupLabel();
   const pl=document.getElementById('pf-lang');if(pl)pl.textContent=LANG==='en'?'English':'العربية';
   if(LANG==='en')setTimeout(()=>translateTree(document.body,true),0);
   const pp=document.getElementById('pf-push');if(pp)pp.textContent=S.fcmToken?(LANG==='en'?'On':'مفعّلة'):(LANG==='en'?'Off — tap to enable':'غير مفعّلة — اضغط للتفعيل');
@@ -2038,11 +2079,11 @@ async function removeReward(id){
 
 async function renderAdminProfile(){
   document.getElementById('apf-name').textContent=S.name;
-  const coded=S.orgType==='family'||S.orgType==='school';
+  const coded=true;
   document.getElementById('apf-org-title').textContent=TL().settings;
   document.querySelector('#pg-adm-profile .profile-role').textContent=TL().admin;
   try{const o=await db.collection('orgs').doc(S.orgId).get();const d=o.data()||{};
-    document.getElementById('apf-join').innerHTML=coded?`كود الانضمام: <b dir="ltr" style="letter-spacing:2px">${d.code||'—'}</b>`:`نطاقات البريد: <span dir="ltr">${(d.domains||[]).join(', ')}</span>`;
+    document.getElementById('apf-join').innerHTML=`كود الانضمام: <b dir="ltr" style="letter-spacing:2px">${d.code||'—'}</b>${(d.domains||[]).length?`<div style="font-size:11px;color:var(--tx3)">نطاقات البريد: <span dir="ltr">${d.domains.join(', ')}</span></div>`:''}`;
     S._joinCode=d.code;
   }catch(e){console.error(e)}
 }
@@ -2067,9 +2108,10 @@ async function renderReport(){
   const comp=quizN?(quizSum/quizN/5*100).toFixed(0):null;
   const deptRows=Object.entries(depts).sort((a,b)=>b[1].min-a[1].min);
   const L=t;
+  const fam=S.orgType==='family';
   body.innerHTML=`
     <div class="report-head"><div style="font-family:var(--ff);font-size:18px;font-weight:900">${L('kpi_title')} — ${S.orgName}</div><div style="font-size:11px;color:#666">${new Date().toLocaleDateString(LOCALE(),{year:'numeric',month:'long',day:'numeric'})}</div></div>
-    <table class="kpi-table">
+    ${fam?'':`<table class="kpi-table">
       <thead><tr><th>${L('kpi_ind')}</th><th>${L('kpi_how')}</th><th>${L('kpi_val')}</th></tr></thead>
       <tbody>
         <tr><td>${L('k1')}</td><td class="m">${L('k1m')}</td><td class="v">${activeAll.size} / ${users.length}</td></tr>
@@ -2078,10 +2120,10 @@ async function renderReport(){
         <tr><td>${L('k4')}</td><td class="m">${L('k4m')}</td><td class="v">${comp===null?'—':comp+'%'}<div style="font-size:10px;font-weight:400;color:var(--tx3)">${quizN} ${L('quizzes')}</div></td></tr>
         <tr><td>${L('k5')}</td><td class="m">${L('k5m')}</td><td class="v">${finished}</td></tr>
       </tbody>
-    </table>
-    <div style="font-family:var(--ff);font-size:12px;font-weight:700;margin:16px 0 4px">${S.orgType==='family'?'مقارنة الأبناء':S.orgType==='school'?'مقارنة الصفوف':L('k6')} <span style="font-weight:400;color:var(--tx3)">— ${L('k6m')}</span></div>
+    </table>`}
+    <div style="font-family:var(--ff);font-size:12px;font-weight:700;margin:16px 0 4px">${S.orgType==='family'?'مقارنة القرّاء':S.orgType==='school'?'مقارنة الصفوف':L('k6')} <span style="font-weight:400;color:var(--tx3)">— ${L('k6m')}</span></div>
     <table class="kpi-table">
-      <thead><tr><th>#</th><th>${groupLabel()}</th><th>${L('readers')}</th><th>${L('sessions')}</th><th>${L('minutes')}</th><th>${L('finished')}</th><th>${L('points')}</th></tr></thead>
+      <thead><tr><th>#</th><th>${fam?'القارئ':groupLabel()}</th><th>${L('readers')}</th><th>${L('sessions')}</th><th>${L('minutes')}</th><th>${L('finished')}</th><th>${L('points')}</th></tr></thead>
       <tbody>${deptRows.map(([d,x],i)=>`<tr><td class="v" style="font-size:12px">${i+1}</td><td>${d}</td><td>${x.n}</td><td>${x.ses}</td><td>${x.min}</td><td>${x.fin}</td><td class="v" style="font-size:12px">${x.pts}</td></tr>`).join('')||`<tr><td colspan="7" class="m">${L('no_data')}</td></tr>`}</tbody>
     </table>
     <div style="font-size:10px;color:var(--tx3);margin-top:12px">${L('report_note')}</div>`;
@@ -2092,6 +2134,24 @@ function printReport(){window.print()}
 async function ensureIndividualOrg(){
   try{const d=await db.collection('orgs').doc('individual').get();if(!d.exists)await db.collection('orgs').doc('individual').set({name:'قارئ مستقل',type:'individual',domains:[],active:true,createdAt:new Date().toISOString()})}catch(e){console.error(e)}
 }
+let ALL_USERS=[],ORG_NAMES_MAP={};
+async function renderSuperUsers(){
+  const c=document.getElementById('sup-users-list');c.innerHTML='<div class="ai-loading"><div class="ai-dots"><span></span><span></span><span></span></div></div>';
+  try{
+    const [uq,oq]=await Promise.all([db.collection('users').limit(1000).get(),db.collection('orgs').get()]);
+    ORG_NAMES_MAP={};oq.docs.forEach(d=>ORG_NAMES_MAP[d.id]=d.data().name);
+    ALL_USERS=uq.docs.map(d=>({id:d.id,...d.data()})).sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+    document.getElementById('sup-users-count').textContent=ALL_USERS.length;renderSuperUsersList();
+  }catch(e){console.error(e);c.innerHTML='<div class="empty"><div class="empty-txt">تعذّر التحميل</div></div>'}
+}
+function renderSuperUsersList(){
+  const q=(document.getElementById('sup-search').value||'').trim().toLowerCase();
+  const list=ALL_USERS.filter(u=>!q||(u.name||'').toLowerCase().includes(q)||(u.email||'').toLowerCase().includes(q)).slice(0,200);
+  const roleLbl={user:'قارئ',admin:'مدير',super:'منصة'};
+  document.getElementById('sup-users-list').innerHTML=list.map(u=>{const a=avOf(u);return`<div class="emp-row" style="${u.disabled?'opacity:.5':''}"><div class="emp-avatar" style="background:${a.bg}">${a.av}</div><div class="emp-info"><div class="emp-name">${u.name||'—'} <span style="font-size:10px;color:var(--tx3)">${roleLbl[u.role]||u.role}</span></div><div class="emp-meta" dir="ltr" style="text-align:right">${u.email||''}</div><div class="emp-meta">${ORG_NAMES_MAP[u.orgId]||u.orgName||'—'} · ${u.sessions||0} جلسة · ${u.pts||0} نقطة${u.disabled?' · ⛔ معطّل':''}</div></div>${u.role==='super'?'':`<div style="display:flex;flex-direction:column;gap:4px"><button class="btn-xs btn-o" onclick="supToggleRole('${u.id}')">${u.role==='admin'?'↓ قارئ':'↑ مدير'}</button><button class="btn-xs btn-o" style="color:var(--err);border-color:var(--err)" onclick="supToggleDisabled('${u.id}')">${u.disabled?'تفعيل':'تعطيل'}</button></div>`}</div>`}).join('')||'<div class="empty"><div class="empty-txt">لا نتائج</div></div>';
+}
+async function supToggleRole(id){const u=ALL_USERS.find(x=>x.id===id);if(!u)return;const nr=u.role==='admin'?'user':'admin';if(!confirm(`تغيير دور ${u.name} إلى ${nr==='admin'?'مدير':'قارئ'}؟`))return;await db.collection('users').doc(id).update({role:nr});u.role=nr;renderSuperUsersList();showToast('✅ تم التحديث')}
+async function supToggleDisabled(id){const u=ALL_USERS.find(x=>x.id===id);if(!u)return;const nd=!u.disabled;if(!confirm(`${nd?'تعطيل':'تفعيل'} حساب ${u.name}؟`))return;await db.collection('users').doc(id).update({disabled:nd});u.disabled=nd;renderSuperUsersList();showToast('✅ تم التحديث')}
 async function renderSuperOrgs(){
   await ensureIndividualOrg();
   const c=document.getElementById('sup-org-list');
@@ -2100,7 +2160,7 @@ async function renderSuperOrgs(){
     const [oq]=await Promise.all([db.collection('orgs').get(),loadUsers()]);
     const orgs=oq.docs.map(d=>({id:d.id,...d.data()}));
     const counts={};USERS_CACHE.forEach(u=>{counts[u.orgId]=(counts[u.orgId]||0)+1});
-    c.innerHTML=orgs.length?orgs.map(o=>`<div class="emp-row"><div class="emp-avatar" style="background:var(--ok-l)">${o.type==='family'?'👨‍👩‍👧':o.type==='school'?'🎓':o.type==='individual'?'👤':'🏢'}</div><div class="emp-info"><div class="emp-name">${o.name}</div><div class="emp-meta" dir="ltr" style="text-align:right">${o.type==='family'?'👨‍👩‍👧 عائلة · كود '+o.code:o.type==='school'?'🎓 مدرسة · كود '+o.code:o.type==='individual'?'👤 القرّاء المستقلون':(o.domains||[]).join(' · ')}</div><div class="emp-meta">${counts[o.id]||0} موظف</div></div><button class="btn-xs ${o.active===false?'btn-g':'btn-o'}" onclick="toggleOrg('${o.id}',${o.active===false})">${o.active===false?'تفعيل':'إيقاف'}</button></div>`).join(''):'<div class="empty"><div class="empty-icon">🏢</div><div class="empty-txt">لا توجد مؤسسات بعد — أضف أول مؤسسة</div></div>';
+    c.innerHTML=orgs.length?orgs.map(o=>`<div class="emp-row"><div class="emp-avatar" style="background:var(--ok-l)">${o.type==='family'?'👨‍👩‍👧':o.type==='school'?'🎓':o.type==='individual'?'👤':'🏢'}</div><div class="emp-info"><div class="emp-name">${o.name}</div><div class="emp-meta" dir="ltr" style="text-align:right">${o.type==='family'?'👨‍👩‍👧 عائلة · كود '+o.code:o.type==='school'?'🎓 مدرسة · كود '+o.code:o.type==='individual'?'👤 القرّاء المستقلون':'🏢 كود '+(o.code||'—')+' · '+((o.domains||[]).join(' · ')||'بدون نطاقات')}</div><div class="emp-meta">${counts[o.id]||0} موظف</div></div><button class="btn-xs ${o.active===false?'btn-g':'btn-o'}" onclick="toggleOrg('${o.id}',${o.active===false})">${o.active===false?'تفعيل':'إيقاف'}</button></div>`).join(''):'<div class="empty"><div class="empty-icon">🏢</div><div class="empty-txt">لا توجد مؤسسات بعد — أضف أول مؤسسة</div></div>';
   }catch(e){console.error(e);c.innerHTML='<div class="empty"><div class="empty-txt">تعذّر التحميل</div></div>'}
 }
 function toggleAddOrg(){const f=document.getElementById('add-org-form');f.style.display=f.style.display==='none'?'block':'none'}
@@ -2110,7 +2170,7 @@ async function addOrg(){
   const d=document.getElementById('new-org-domains').value.toLowerCase().split(',').map(x=>x.trim().replace(/^@/,'')).filter(Boolean);
   if(!n||(t==='org'&&!d.length)){showToast('أدخل الاسم ونطاق البريد');return}
   try{
-    await db.collection('orgs').add(t==='school'?{name:n,type:'school',code:genCode(),domains:[],active:true,createdAt:new Date().toISOString()}:{name:n,type:'org',domains:d,active:true,createdAt:new Date().toISOString()});
+    await db.collection('orgs').add(t==='school'?{name:n,type:'school',code:genCode(),domains:[],active:true,createdAt:new Date().toISOString()}:{name:n,type:'org',code:genCode(),domains:d,active:true,createdAt:new Date().toISOString()});
     toggleAddOrg();renderSuperOrgs();showToast('تمت إضافة المؤسسة');
     document.getElementById('new-org-name').value='';document.getElementById('new-org-domains').value='';
   }catch(e){console.error(e);showToast('⚠️ تعذّر الحفظ')}
